@@ -2,7 +2,7 @@
 AgFS has three distinct programs with the following options.
 * agfs-client [-i *instance*] *mount point*
 * agfs-server [-p *port*]
-* agfs-keygen *dns-name/ipaddr* *user* *mount*
+* agfs-keygen *dns-name/ipaddr* *user* *mount* *key-filename*
 
 ## Storage locations for AfFS data
 ### Server
