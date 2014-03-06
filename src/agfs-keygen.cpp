@@ -13,6 +13,7 @@ int main(int argc, char** argv)
 {
   if(argc != 5) {
     cout << "usage: agfs-keygen {host dns name/ip addr} {user} {local mount point} {key file name}" << endl;
+    return 0;
   }
   ofstream keyFile;
 
@@ -21,12 +22,22 @@ int main(int argc, char** argv)
   keyFileName.append(argv[4]);
   keyFile.open(keyFileName, ios::out | ios::trunc);
 
+  if (!keyFile.is_open()) {
+    cerr << "Could not open key file: " << keyFileName << endl;
+    return 0;
+  }
+
   //Put the hostname/ipaddr into the key file so the client can use it to connect
   keyFile << argv[1] << endl;
 
   //Open the key list
   ofstream keyList;
   keyList.open(KEY_LIST_PATH, ios::out | ios::app);
+
+  if(!keyList.is_open()) {
+    cerr << "Could not open keyList file" << endl;
+    return 0;
+  }
 
   //Prepare the psuedo random number generator
   random_device randDev;
