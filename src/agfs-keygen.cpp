@@ -5,7 +5,7 @@
 #include <errno.h>
 
 //Boost includes
-#include <boost/filesystem.cpp>
+#include <boost/filesystem.hpp>
 
 using namespace std;
 using namespace boost::filesystem;
@@ -13,6 +13,8 @@ using namespace boost::filesystem;
 //Key len in bytes (Will be encoded in hex)
 static const int KEY_LEN = 256;
 static const path DIR_PATH = path("/var/lib/agfs");
+static const string KEY_NAME_PATH = "/var/lib/agfs/";
+static const string KEY_EXTENSION = ".agkey";
 static const string KEY_LIST_PATH = "/var/lib/agfs/authkeys";
 
 static const char hexValues[16] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
@@ -32,7 +34,7 @@ int main(int argc, char** argv)
   }
 
   fstream devRandom;
-  devRandom.open("/dev/random", fstream::in);
+  devRandom.open("/dev/urandom", fstream::in);
 
   fstream keyListFile;
   keyListFile.open(KEY_LIST_PATH, fstream::out | fstream::app);
@@ -43,16 +45,17 @@ int main(int argc, char** argv)
   }
 
   fstream keyFile;
-  keyFile.open(argv[4], fstream::out);
+  string keyFileName = KEY_NAME_PATH + argv[5] + KEY_EXTENSION;
+  keyFile.open(keyFileName, fstream::out);
 
   if(!keyFile.is_open()) {
-    cerr << "Could not open key file: " << argv[4] << endl;
+    cerr << "Could not open key file: " << argv[5] << endl;
     return -ENOENT;
   }
 
   //put the header of the key file
   //Print DNS name and port
-  keyFile << arv[1] << endl << arv[2] << endl;
+  keyFile << argv[1] << endl << argv[2] << endl;
 
   //Generate the random key
   string keyStr = "";
@@ -60,10 +63,10 @@ int main(int argc, char** argv)
 
   while (count < KEY_LEN) {
     char c;
-    devRandom.get(&c);
+    devRandom.get(c);
     char lowerByte, upperByte;
-    lowerByte = hexValues[0xff & c];
-    upperByte = hexValues[(0xff00 & c) >> 8];
+    lowerByte = hexValues[0x0f & c];
+    upperByte = hexValues[(0xf0 & c) >> 4];
     keyStr += upperByte;
     keyStr += lowerByte;
     ++count;
@@ -73,12 +76,14 @@ int main(int argc, char** argv)
   keyFile << keyStr << endl;
 
   //print mount point, uname, key to the key list file
-  keyListFile << argv[4] << "," << argv[3] << "," keyStr << endl;
+  keyListFile << argv[4] << "," << argv[3] << "," << keyStr << endl;
 
   //Close files
   devRandom.close();
   keyFile.close();
   keyListFile.close();
+
+  cerr << "Successfuly created new key file" << endl;
  
   return 0;
 }
