@@ -2,67 +2,83 @@
 #include <fstream>
 #include <random>
 #include <string>
+#include <errno.h>
+
+//Boost includes
+#include <boost/filesystem.cpp>
 
 using namespace std;
+using namespace boost::filesystem;
 
+//Key len in bytes (Will be encoded in hex)
 static const int KEY_LEN = 256;
-static const string DIR_PATH = "/var/lib/agfs/";
-static const string KEY_LIST_PATH = "/var/lib/agfs/keylist.keys";
+static const path DIR_PATH = path("/var/lib/agfs");
+static const string KEY_LIST_PATH = "/var/lib/agfs/authkeys";
+
+static const char hexValues[16] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
 
 int main(int argc, char** argv)
 {
-  if(argc != 5) {
-    cout << "usage: agfs-keygen {host dns name/ip addr} {user} {local mount point} {key file name}" << endl;
+  if(argc != 6) {
+    cout << "usage: agfs-keygen {host dns name/ip addr} {port} {user} {local mount point} {key file name}" << endl;
     return 0;
   }
-  ofstream keyFile;
-
-  //Open the key file
-  string keyFileName = DIR_PATH;
-  keyFileName.append(argv[4]);
-  keyFile.open(keyFileName, ios::out | ios::trunc);
-
-  if (!keyFile.is_open()) {
-    cerr << "Could not open key file: " << keyFileName << endl;
-    return 0;
+  
+  if(!exists(DIR_PATH)) {
+    if(!create_directory(DIR_PATH)) {
+      cerr << "Could not create key directory" << endl;
+      return -ENOENT;
+    }
   }
 
-  //Put the hostname/ipaddr into the key file so the client can use it to connect
-  keyFile << argv[1] << endl;
+  fstream devRandom;
+  devRandom.open("/dev/random", fstream::in);
 
-  //Open the key list
-  ofstream keyList;
-  keyList.open(KEY_LIST_PATH, ios::out | ios::app);
+  fstream keyListFile;
+  keyListFile.open(KEY_LIST_PATH, fstream::out | fstream::app);
 
-  if(!keyList.is_open()) {
-    cerr << "Could not open keyList file" << endl;
-    return 0;
+  if(!keyListFile.is_open()){
+    cerr << "Could not open keyListFile" <<endl;
+    return -ENOENT;
   }
 
-  //Prepare the psuedo random number generator
-  random_device randDev;
-  mt19937 randGen(randDev());
-  uniform_int_distribution<> dist(65, 122);
- 
-  //Generate the key
-  string key;
-  for(int i = 0; i < KEY_LEN; ++i) {
-    key.push_back((char) dist(randGen));
+  fstream keyFile;
+  keyFile.open(argv[4], fstream::out);
+
+  if(!keyFile.is_open()) {
+    cerr << "Could not open key file: " << argv[4] << endl;
+    return -ENOENT;
   }
-  //Put the key in both the keyfile and the keylist
-  keyFile << key << endl;
-  keyList << key;
 
-  //Put the user and mount information into the key list
-  keyList << "," << argv[2] << "," << argv[3] << endl;
+  //put the header of the key file
+  //Print DNS name and port
+  keyFile << arv[1] << endl << arv[2] << endl;
 
-  //Close both files
+  //Generate the random key
+  string keyStr = "";
+  size_t count = 0;
+
+  while (count < KEY_LEN) {
+    char c;
+    devRandom.get(&c);
+    char lowerByte, upperByte;
+    lowerByte = hexValues[0xff & c];
+    upperByte = hexValues[(0xff00 & c) >> 8];
+    keyStr += upperByte;
+    keyStr += lowerByte;
+    ++count;
+  }
+
+  //print the key to the keyfile
+  keyFile << keyStr << endl;
+
+  //print mount point, uname, key to the key list file
+  keyListFile << argv[4] << "," << argv[3] << "," keyStr << endl;
+
+  //Close files
+  devRandom.close();
   keyFile.close();
-  keyList.close();
-
-  //Print confirmation message
-  cout << "Created key for user " << argv[2] << " mounting to location " << argv[3] << endl;
-  cout << "Key: " << endl << key << endl;
+  keyListFile.close();
  
   return 0;
 }
