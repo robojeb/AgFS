@@ -31,6 +31,9 @@ public:
 
   void start()
   {
+    // First param says that this is the server side of the handshake.
+    // Second is the handshake handler. These handlers appear to be of 
+    // the form (method, object, [params,] erro).
     socket_.async_handshake(boost::asio::ssl::stream_base::server,
         boost::bind(&session::handle_handshake, this,
           boost::asio::placeholders::error));
@@ -84,7 +87,7 @@ public:
 
 private:
   ssl_socket socket_;
-  enum { max_length = 1024 };
+  int max_length = 1024;
   char data_[max_length];
 };
 
@@ -97,6 +100,9 @@ public:
           boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port)),
       context_(io_service, boost::asio::ssl::context::sslv23)
   {
+    // Turn off SSLv2 because it is old and shit...
+    // Single dh use indicates that a new key should be created when using tmp_dh parms.
+    // Default workarounds implements bug workarounds.
     context_.set_options(
         boost::asio::ssl::context::default_workarounds
         | boost::asio::ssl::context::no_sslv2
