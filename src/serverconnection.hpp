@@ -1,6 +1,10 @@
 #ifndef SERVERCONN_HPP_INC
 #define SERVERCONN_HPP_INC
 
+#include <sys/stat.h>
+#include <string>
+#include "constants.hpp"
+
 class ServerConnection {
 public:
 	ServerConnection(std::string hostname, std::string port);
@@ -11,11 +15,11 @@ public:
 	//Returns the hostname
 	std::string hostname();
 
-	std::pair<struct stat*, int> getattr(char* path);
+	std::pair<struct stat, agerr_t> getattr(char* path);
 
 private:
 
-	int dnsLookup(char* port);
+	int dnsLookup(const char* port);
 
 	//Consecutive heartbeats missed
 	size_t beatsMissed_;

@@ -3,9 +3,9 @@
 
 #include <cstdint>
 
-typedef cmd_t uint16_t;
-typedef agsize_t uint64_t;
-typedef agerr_t int64_t;
+typedef uint16_t cmd_t;
+typedef uint64_t agsize_t;
+typedef int64_t agerr_t;
 
 namespace cmd {
 	constexpr cmd_t STOP = 0;

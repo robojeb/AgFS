@@ -1,11 +1,18 @@
+#include <iostream>
 #include "serverconnection.hpp"
+#include "constants.hpp"
+#include <unistd.h>
+#include <cstring>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <netdb.h>
 
 ServerConnection::ServerConnection(std::string hostname, std::string port):
 	beatsMissed_{0},
 	hostname_{hostname},
 	socket_{-1}
 {
-	socket_ = dnsLookup(port.cstr());
+	socket_ = dnsLookup(port.c_str());
 	switch (socket_){
 	case -1:
 		std::cerr << "Failed DNS lookup" << std::endl;
@@ -26,13 +33,14 @@ bool ServerConnection::connected()
 	if (socket_ < 0) {
 		return false;
 	}
+	return true;
 }
 
 /******************
  * FUSE functions *
  ******************/
 
-std::pair<struct stat, int> ServerConnection::getattr(char* path)
+std::pair<struct stat, agerr_t> ServerConnection::getattr(char* path)
 {
 	//Write command and path
 	cmd_t cmd = cmd::GETATTR;
@@ -47,14 +55,14 @@ std::pair<struct stat, int> ServerConnection::getattr(char* path)
 	if(errVal >= 0) {
 		read(socket_, &readValues, sizeof(struct stat));
 	}
-	return new std::pair<struct stat, int>(readValues, errVal);
+	return std::pair<struct stat, int>(readValues, errVal);
 }
 
 /*********************
  * Private Functions *
  *********************/
 
-int ServerConnection::dnsLookup(char* port)
+int ServerConnection::dnsLookup(const char* port)
 {
   struct addrinfo hints, *hostaddress = NULL;
   int error, fd;
@@ -66,7 +74,7 @@ int ServerConnection::dnsLookup(char* port)
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = AI_CANONNAME;
   
-  if ((error = getaddrinfo(hostname_.cstr(), port, &hints, &hostaddress)) != 0) {
+  if ((error = getaddrinfo(hostname_.c_str(), port, &hints, &hostaddress)) != 0) {
     return -1;
   }
 

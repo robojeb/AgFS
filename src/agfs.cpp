@@ -31,6 +31,9 @@
 #include <sys/xattr.h>
 #endif
 
+#include <vector>
+#include "serverconnection.hpp"
+
 static int agfs_getattr(const char *path, struct stat *stbuf)
 {
   int res;
@@ -378,8 +381,11 @@ static struct fuse_operations agfs_oper = {
 #endif
 };
 
+static std::vector<ServerConnection> connections;
+
 int main(int argc, char *argv[])
 {
-  umask(0);
-  return fuse_main(argc, argv, &agfs_oper, NULL);
+  connections.push_back(ServerConnection("viki.st.hmc.edu", "6789"));
+  return 0;
+  //return fuse_main(argc, argv, &agfs_oper, NULL);
 }
