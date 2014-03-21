@@ -32,7 +32,15 @@
 #endif
 
 #include <vector>
+#include <iostream>
 #include "serverconnection.hpp"
+
+/**************
+ * GLOBALS *
+ ***********/
+
+static std::vector<ServerConnection> connections;
+
 
 static int agfs_getattr(const char *path, struct stat *stbuf)
 {
@@ -381,11 +389,70 @@ static struct fuse_operations agfs_oper = {
 #endif
 };
 
-static std::vector<ServerConnection> connections;
+struct agfs_config {
+  char* instanceFile;
+};
+
+enum {
+     KEY_HELP,
+     KEY_VERSION,
+};
+
+#define AGFS_OPT(t, p, v) { t, offsetof(struct agfs_config, p), v }
+
+static struct fuse_opt agfs_opts[] = {
+     AGFS_OPT("-i %s",          instanceFile, 0),
+     AGFS_OPT("--instance=%s", instanceFile, 0),
+     AGFS_OPT("instance=%s", instanceFile, 0),
+
+     FUSE_OPT_KEY("-V",             KEY_VERSION),
+     FUSE_OPT_KEY("--version",      KEY_VERSION),
+     FUSE_OPT_KEY("-h",             KEY_HELP),
+     FUSE_OPT_KEY("--help",         KEY_HELP),
+     FUSE_OPT_END
+};
+
+#define PACKAGE_VERSION "0.0.0"
+
+static int agfs_opt_proc(void *data, const char *arg, int key, struct fuse_args *outargs)
+{
+     switch (key) {
+     case KEY_HELP:
+             fprintf(stderr,
+                     "usage: %s mountpoint [options]\n"
+                     "\n"
+                     "general options:\n"
+                     "    -o opt,[opt...]  mount options\n"
+                     "    -h   --help      print help\n"
+                     "    -V   --version   print version\n"
+                     "\n"
+                     "agfs options:\n"
+                     "    -o instance=STRING\n"
+                     "    -i STRING          same as '-o instance=STRING'\n"
+                     "    --instance=%s    same as -i STRING'\n\n"
+                     , outargs->argv[0]);
+             fuse_opt_add_arg(outargs, "-ho");
+             fuse_main(outargs->argc, outargs->argv, &agfs_oper, NULL);
+             exit(1);
+
+     case KEY_VERSION:
+             fprintf(stderr, "agfs version %s\n", PACKAGE_VERSION);
+             fuse_opt_add_arg(outargs, "--version");
+             fuse_main(outargs->argc, outargs->argv, &agfs_oper, NULL);
+             exit(0);
+     }
+     return 1;
+}
+
 
 int main(int argc, char *argv[])
 {
-  connections.push_back(ServerConnection("viki.st.hmc.edu", "6789"));
-  return 0;
-  //return fuse_main(argc, argv, &agfs_oper, NULL);
+  struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
+  struct agfs_config conf;
+
+  memset(&conf, 0, sizeof(conf));
+
+  fuse_opt_parse(&args, &conf, agfs_opts, agfs_opt_proc);
+
+  return fuse_main(args.argc, args.argv, &agfs_oper, NULL);
 }

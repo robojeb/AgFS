@@ -6,7 +6,7 @@ OPTFLAGS = -O2
 CXX = clang++
 CXXFLAGS = -Wall -Wextra -pedantic -std=c++11 $(OPTFLAGS) -D_FILE_OFFSET_BITS=64
 
-LDFLAGS = -lboost_system -lpthread -lboost_filesystem
+LDFLAGS = -lboost_system -lpthread -lboost_filesystem -lfuse
 
 TARGETS = agfs-keygen agfsd agfs
 
