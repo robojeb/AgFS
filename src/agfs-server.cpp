@@ -1,172 +1,107 @@
-//
-// server.cpp
-// ~~~~~~~~~~
-//
-// Copyright (c) 2003-2010 Christopher M. Kohlhoff (chris at kohlhoff dot com)
-//
-// Distributed under the Boost Software License, Version 1.0. (See accompanying
-// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
-//
+#include <stdio.h>
+#include <netdb.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <errno.h>
 
-#include <cstdlib>
-#include <iostream>
-#include <boost/bind.hpp>
-#include <boost/asio.hpp>
-#include <boost/asio/ssl.hpp>
+#include "constants.hpp"
 
-typedef boost::asio::ssl::stream<boost::asio::ip::tcp::socket> ssl_socket;
+int openPort(char* port){
+  int listenfd, optval=1, error;
+  struct addrinfo hints;
+  struct addrinfo *hostaddress = NULL;
+  
+  memset(&hints, 0, sizeof hints);
 
-class session
-{
-public:
-  session(boost::asio::io_service& io_service, boost::asio::ssl::context& context)
-    : socket_(io_service, context)
-  {
+  hints.ai_flags = AI_ADDRCONFIG | AI_PASSIVE; //get info about the port config
+  hints.ai_family = AF_INET; //IPv4
+  hints.ai_socktype = SOCK_STREAM; //tcp socket
+  
+  error = getaddrinfo(NULL, port, &hints, &hostaddress);
+  if (error != 0){
+    printf("get info failed\n");
+    return -2;
+  }
+  
+  if ((listenfd = socket(hostaddress->ai_family, hostaddress->ai_socktype, hostaddress->ai_protocol)) == -1){
+    printf("socket failed\n");
+    return -1;
   }
 
-  ssl_socket::lowest_layer_type& socket()
-  {
-    return socket_.lowest_layer();
+  if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR,
+     (const void *) &optval, sizeof(optval)) == -1){
+    error = errno;
+    printf("opt failed\n");
+    if (error == EBADF) printf("Not a socket");
+    if (error == EFAULT) printf("fault");
+    if (error == EINVAL) printf("einval");
+    return -1;
+  }
+  
+  if (bind(listenfd, hostaddress->ai_addr, hostaddress->ai_addrlen) == -1){
+    printf("bind failed\n");
+    return -1;
+  }
+ 
+  if (listen(listenfd, 1) == -1){
+    printf("listen failed\n");
+    return -1;
+  }
+  
+  return listenfd;
+}
+
+
+int main(int argc, char** argv){
+  int lfd, connfd;
+  struct sockaddr_in client;
+  size_t clientlen;
+  char buf[256];
+  int n;
+
+  char ipbuf[20];
+
+  lfd = openPort(argv[1]);
+
+  if (lfd < 0) {
+    printf("no file descriptor\n");
+    return 1;
   }
 
-  void start()
-  {
-    // First param says that this is the server side of the handshake.
-    // Second is the handshake handler. These handlers appear to be of 
-    // the form (method, object, [params,] erro).
-    socket_.async_handshake(boost::asio::ssl::stream_base::server,
-        boost::bind(&session::handle_handshake, this,
-          boost::asio::placeholders::error));
-  }
+  while (1) {
+    clientlen = sizeof client;
+    connfd = accept(lfd, (struct sockaddr*)&client, &clientlen);
+    if(connfd == -1) continue;
 
-  void handle_handshake(const boost::system::error_code& error)
-  {
-    if (!error)
-    {
-      socket_.async_read_some(boost::asio::buffer(data_, max_length),
-          boost::bind(&session::handle_read, this,
-            boost::asio::placeholders::error,
-            boost::asio::placeholders::bytes_transferred));
+    //Could fork here
+    while (1) {
+      cmd_t cmd;
+      read(connfd, &cmd, sizeof(cmd_t));
+      switch(cmd){
+      case cmd::GETATTR:
+        agsize_t pathLen;
+        read(connfd, &pathLen, sizeof(agsize_t));
+        char* path = malloc(sizeof(char) * (pathLen + 1));
+        read(connfd, path, pathLen);
+        path[pathLen] = 0; //NULL terminate the string
+        struct stat statBuf;
+        agerr_t res = lstat(path, &statBuf);
+        if (res < 0) {
+          res = -errno;
+          write(connfd, &res, sizeof(agerr_t));
+        } else {
+          write(connfd, &res, sizeof(agerr_t));
+          write(connfd, &statBuf, sizeof(struct stat));
+        }
+        break;
+      default:
+        std::cerr << "Command not supported: " << cmd << std::endl;
+      }
     }
-    else
-    {
-      delete this;
-    }
+    
+    close(connfd);
   }
-
-  void handle_read(const boost::system::error_code& error,
-      size_t bytes_transferred)
-  {
-    if (!error)
-    {
-      boost::asio::async_write(socket_,
-          boost::asio::buffer(data_, bytes_transferred),
-          boost::bind(&session::handle_write, this,
-            boost::asio::placeholders::error));
-    }
-    else
-    {
-      delete this;
-    }
-  }
-
-  void handle_write(const boost::system::error_code& error)
-  {
-    if (!error)
-    {
-      socket_.async_read_some(boost::asio::buffer(data_, max_length),
-          boost::bind(&session::handle_read, this,
-            boost::asio::placeholders::error,
-            boost::asio::placeholders::bytes_transferred));
-    }
-    else
-    {
-      delete this;
-    }
-  }
-
-private:
-  ssl_socket socket_;
-  int max_length = 1024;
-  char data_[max_length];
-};
-
-class server
-{
-public:
-  server(boost::asio::io_service& io_service, unsigned short port)
-    : io_service_(io_service),
-      acceptor_(io_service,
-          boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port)),
-      context_(io_service, boost::asio::ssl::context::sslv23)
-  {
-    // Turn off SSLv2 because it is old and shit...
-    // Single dh use indicates that a new key should be created when using tmp_dh parms.
-    // Default workarounds implements bug workarounds.
-    context_.set_options(
-        boost::asio::ssl::context::default_workarounds
-        | boost::asio::ssl::context::no_sslv2
-        | boost::asio::ssl::context::single_dh_use);
-    context_.set_password_callback(boost::bind(&server::get_password, this));
-    context_.use_certificate_chain_file("server.pem");
-    context_.use_private_key_file("server.pem", boost::asio::ssl::context::pem);
-    context_.use_tmp_dh_file("dh512.pem");
-
-    session* new_session = new session(io_service_, context_);
-    acceptor_.async_accept(new_session->socket(),
-        boost::bind(&server::handle_accept, this, new_session,
-          boost::asio::placeholders::error));
-  }
-
-  std::string get_password() const
-  {
-    return "test";
-  }
-
-  void handle_accept(session* new_session,
-      const boost::system::error_code& error)
-  {
-    if (!error)
-    {
-      new_session->start();
-      new_session = new session(io_service_, context_);
-      acceptor_.async_accept(new_session->socket(),
-          boost::bind(&server::handle_accept, this, new_session,
-            boost::asio::placeholders::error));
-    }
-    else
-    {
-      delete new_session;
-    }
-  }
-
-private:
-  boost::asio::io_service& io_service_;
-  boost::asio::ip::tcp::acceptor acceptor_;
-  boost::asio::ssl::context context_;
-};
-
-int main(int argc, char* argv[])
-{
-  try
-  {
-    if (argc != 2)
-    {
-      std::cerr << "Usage: server <port>\n";
-      return 1;
-    }
-
-    boost::asio::io_service io_service;
-
-    using namespace std; // For atoi.
-    server s(io_service, atoi(argv[1]));
-
-    io_service.run();
-  }
-  catch (std::exception& e)
-  {
-    std::cerr << "Exception: " << e.what() << "\n";
-  }
-
-  return 0;
 }
