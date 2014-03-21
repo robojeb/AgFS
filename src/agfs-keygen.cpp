@@ -5,17 +5,14 @@
 #include <errno.h>
 
 //Boost includes
+#include "constants.hpp"
 #include <boost/filesystem.hpp>
 
 using namespace std;
 using namespace boost::filesystem;
 
-//Key len in bytes (Will be encoded in hex)
-static const int KEY_LEN = 256;
-static const path DIR_PATH = path("/var/lib/agfs");
-static const string KEY_NAME_PATH = "/var/lib/agfs/";
-static const string KEY_EXTENSION = ".agkey";
-static const string KEY_LIST_PATH = "/var/lib/agfs/authkeys";
+//Key len in bytes (Will be encoded in hex)s
+static const path DIR_PATH = path(KEY_NAME_PATH);
 
 static const char hexValues[16] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
 
@@ -76,7 +73,7 @@ int main(int argc, char** argv)
   keyFile << keyStr << endl;
 
   //print mount point, uname, key to the key list file
-  keyListFile << argv[4] << "," << argv[3] << "," << keyStr << endl;
+  keyListFile << argv[4] << " " << argv[3] << " " << keyStr << endl;
 
   //Close files
   devRandom.close();

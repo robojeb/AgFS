@@ -33,12 +33,11 @@ ServerConnection::ServerConnection(std::string hostname, std::string port, std::
 		break;
 	}
 
-	//Set timeout?
+	//Set timeout
 	struct timeval tv;
 	tv.tv_sec = CLIENT_BLOCK_SEC;
 	tv.tv_usec = CLIENT_BLOCK_USEC;
-	int res = setsockopt(socket_, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)(&tv), sizeof(struct timeval));
-	if(res != 0) std::cout << "FUCK" << std::endl;
+	setsockopt(socket_, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)(&tv), sizeof(struct timeval));
 	int iMode = 0;
 	ioctl(socket_, FIONBIO, &iMode);  
 
