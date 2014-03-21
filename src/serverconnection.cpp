@@ -7,7 +7,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-ServerConnection::ServerConnection(std::string hostname, std::string port):
+ServerConnection::ServerConnection(std::string hostname, std::string port, std::string key):
 	beatsMissed_{0},
 	hostname_{hostname},
 	socket_{-1}
@@ -25,6 +25,31 @@ ServerConnection::ServerConnection(std::string hostname, std::string port):
 		break;
 	default:
 		break;
+	}
+	if(socket_ > 0) {
+		//send key for verification
+		write(socket_, key.c_str(), ASCII_KEY_LEN);
+		cmd_t servResp;
+		read(socket_, &servResp, sizeof(cmd_t));
+		switch(servResp) {
+		case cmd::INVALID_KEY:
+			std::cerr << "Server " << hostname << ": Invalid key" << std::endl;
+			close(socket_);
+			socket_ = -1;
+			break;
+		case cmd::MOUNT_NOT_FOUND:
+			std::cerr << "Server " << hostname << ": Remote mount not found" << std::endl;
+			close(socket_);
+			socket_ = -1;
+			break;
+		case cmd::USER_NOT_FOUND:
+			std::cerr << "Server " << hostname << ": Remote user not found" << std::endl;
+			close(socket_);
+			socket_ = -1;
+			break;
+		default: 
+			std::cerr << "Connected to server" << std::endl;
+		}
 	}
 };
 

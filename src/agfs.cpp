@@ -31,8 +31,12 @@
 #include <sys/xattr.h>
 #endif
 
+
+// Non-FUSE includes
 #include <vector>
 #include <iostream>
+#include <fstream>
+#include <boost/filesystem.hpp>
 #include "serverconnection.hpp"
 
 /**************
@@ -389,7 +393,13 @@ static struct fuse_operations agfs_oper = {
 #endif
 };
 
-struct agfs_config {
+
+/************************************
+ * OPTIONS PROCESSING (Not working) *
+ ************************************/
+ 
+
+/*struct agfs_config {
   char* instanceFile;
 };
 
@@ -397,7 +407,6 @@ enum {
      KEY_HELP,
      KEY_VERSION,
 };
-
 #define AGFS_OPT(t, p, v) { t, offsetof(struct agfs_config, p), v }
 
 static struct fuse_opt agfs_opts[] = {
@@ -412,7 +421,8 @@ static struct fuse_opt agfs_opts[] = {
      FUSE_OPT_END
 };
 
-#define PACKAGE_VERSION "0.0.0"
+#define PACKAGE_VERSION "0.0.0 beta"
+
 
 static int agfs_opt_proc(void *data, const char *arg, int key, struct fuse_args *outargs)
 {
@@ -429,7 +439,7 @@ static int agfs_opt_proc(void *data, const char *arg, int key, struct fuse_args 
                      "agfs options:\n"
                      "    -o instance=STRING\n"
                      "    -i STRING          same as '-o instance=STRING'\n"
-                     "    --instance=%s    same as -i STRING'\n\n"
+                     "    --instance=STRING    same as -i STRING'\n\n"
                      , outargs->argv[0]);
              fuse_opt_add_arg(outargs, "-ho");
              fuse_main(outargs->argc, outargs->argv, &agfs_oper, NULL);
@@ -442,17 +452,41 @@ static int agfs_opt_proc(void *data, const char *arg, int key, struct fuse_args 
              exit(0);
      }
      return 1;
-}
+}*/
 
+
+static const boost::filesystem::path KEYDIRPATH(".agfs");
+static const std::string EXTENSION(".agkey");
+
+using namespace boost::filesystem;
 
 int main(int argc, char *argv[])
 {
-  struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
-  struct agfs_config conf;
+  path homeDir{getenv("HOME")};
+  homeDir /= KEYDIRPATH;
+  if(!exists(homeDir)) {
+    std::cerr << "Could not find key directory: ~/.agfs" << std::endl;
+    exit(1);
+  }
 
-  memset(&conf, 0, sizeof(conf));
-
-  fuse_opt_parse(&args, &conf, agfs_opts, agfs_opt_proc);
-
-  return fuse_main(args.argc, args.argv, &agfs_oper, NULL);
+  directory_iterator end_itr; // default construction yields past-the-end
+  for ( directory_iterator itr( homeDir ); itr != end_itr; ++itr ) {
+    if( is_regular_file(*itr) ) {
+      if( extension(itr->path()) == EXTENSION) {
+        std::cout << "Found keyfile: " << itr->path() << std::endl;
+        std::fstream keyfile;
+        keyfile.open(itr->path().native(), std::fstream::in);
+        if(keyfile.is_open()) {
+          std::cout << "Opened keyfile" << std::endl;
+          std::string hostname, port, key;
+          keyfile >> hostname;
+          keyfile >> port;
+          keyfile >> key;
+          connections.push_back(ServerConnection(hostname, port, key));
+        }
+        keyfile.close();
+      }
+    }
+  }
+  return fuse_main(argc, argv, &agfs_oper, NULL);
 }

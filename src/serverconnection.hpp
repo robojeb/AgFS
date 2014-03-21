@@ -7,7 +7,7 @@
 
 class ServerConnection {
 public:
-	ServerConnection(std::string hostname, std::string port);
+	ServerConnection(std::string hostname, std::string port, std::string key);
 
 	//Returns true if we have a healty connection with the server
 	bool connected(); 
