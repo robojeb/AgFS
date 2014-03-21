@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <cstring>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <sys/time.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 
@@ -13,43 +15,63 @@ ServerConnection::ServerConnection(std::string hostname, std::string port, std::
 	socket_{-1}
 {
 	socket_ = dnsLookup(port.c_str());
+
 	switch (socket_){
 	case -1:
 		std::cerr << "Failed DNS lookup" << std::endl;
+		return;
 		break;
 	case -2:
 		std::cerr << "Failed to create socket" << std::endl;
+		return;
 		break;
 	case -3:
 		std::cerr << "Could not connect to server " << hostname << ":" << port << std::endl;
+		return;
 		break;
 	default:
 		break;
 	}
-	if(socket_ > 0) {
-		//send key for verification
-		write(socket_, key.c_str(), ASCII_KEY_LEN);
-		cmd_t servResp;
-		read(socket_, &servResp, sizeof(cmd_t));
-		switch(servResp) {
-		case cmd::INVALID_KEY:
-			std::cerr << "Server " << hostname << ": Invalid key" << std::endl;
-			close(socket_);
-			socket_ = -1;
-			break;
-		case cmd::MOUNT_NOT_FOUND:
-			std::cerr << "Server " << hostname << ": Remote mount not found" << std::endl;
-			close(socket_);
-			socket_ = -1;
-			break;
-		case cmd::USER_NOT_FOUND:
-			std::cerr << "Server " << hostname << ": Remote user not found" << std::endl;
-			close(socket_);
-			socket_ = -1;
-			break;
-		default: 
-			std::cerr << "Connected to server" << std::endl;
-		}
+
+	//Set timeout?
+	struct timeval tv;
+	tv.tv_sec = CLIENT_BLOCK_SEC;
+	tv.tv_usec = CLIENT_BLOCK_USEC;
+	int res = setsockopt(socket_, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)(&tv), sizeof(struct timeval));
+	if(res != 0) std::cout << "FUCK" << std::endl;
+	int iMode = 0;
+	ioctl(socket_, FIONBIO, &iMode);  
+
+	//send key for verification
+	write(socket_, key.c_str(), ASCII_KEY_LEN);
+	cmd_t servResp;
+	int n = read(socket_, &servResp, sizeof(cmd_t));
+	std::cout << n << std::endl;
+
+	switch(servResp) {
+	case cmd::INVALID_KEY:
+		std::cerr << "Server " << hostname << ": Invalid key" << std::endl;
+		close(socket_);
+		socket_ = -1;
+		break;
+	case cmd::MOUNT_NOT_FOUND:
+		std::cerr << "Server " << hostname << ": Remote mount not found" << std::endl;
+		close(socket_);
+		socket_ = -1;
+		break;
+	case cmd::USER_NOT_FOUND:
+		std::cerr << "Server " << hostname << ": Remote user not found" << std::endl;
+		close(socket_);
+		socket_ = -1;
+		break;
+	case cmd::ACCEPT:
+		std::cerr << "Connected to server" << std::endl;
+		break;
+	default: 
+		std::cerr << "Other/No response" << std::endl;
+		close(socket_);
+		socket_ = -1;
+		break;
 	}
 };
 
