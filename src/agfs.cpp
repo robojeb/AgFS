@@ -38,6 +38,7 @@
 #include <fstream>
 #include <boost/filesystem.hpp>
 #include "serverconnection.hpp"
+#include <sys/types.h>
 
 /**************
  * GLOBALS *

@@ -2,10 +2,13 @@
 #include <fstream>
 #include <unistd.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <sys/ioctl.h>
 #include <cstring>
+#include <pwd.h>
 #include "agfs-server.hpp"
 #include "constants.hpp"
+#include <boost/filesystem.hpp>
 
 void agfsServer(int connfd) {
 
@@ -47,6 +50,29 @@ void agfsServer(int connfd) {
 		return;
 	}
 
+	//Change user
+	struct passwd* userPwd = getpwnam(user.c_str());
+	if(userPwd == NULL) {
+		cmd_t resp = cmd::USER_NOT_FOUND;
+		write(connfd, &resp, sizeof(cmd_t));
+		close(connfd);
+		return;
+	} else {
+		setuid(userPwd->pw_uid);
+		setgid(userPwd->pw_gid);
+	}
+
+	//Check that mount point exists
+	if(!boost::filesystem::exists(mountPath)) {
+		cmd_t resp = cmd::MOUNT_NOT_FOUND;
+		write(connfd, &resp, sizeof(cmd_t));
+		close(connfd);
+		return;
+	}
+
+
+	//Passed all checks accept connection and keep alive until heartbeat
+	//failure or explicit stop
 	cmd_t resp = cmd::ACCEPT;
 	write(connfd, &resp, sizeof(cmd_t));
 	while(1) {

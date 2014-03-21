@@ -67,6 +67,15 @@ int main(int argc, char** argv){
     return 0;
   }
 
+  //become root so we can switch to any other user
+  int res = setuid(0);
+  if(res == -1) {
+    cerr << "Could not become root" << endl;
+    return 1;
+  }
+
+  //Create the port to listen on
+
   int lfd, connfd;
   struct sockaddr_in client;
   socklen_t clientlen;
