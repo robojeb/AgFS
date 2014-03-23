@@ -16,6 +16,7 @@ public:
 	std::string hostname();
 
 	std::pair<struct stat, agerr_t> getattr(char* path);
+	std::pair<struct statvfs, agerr_t> statfs(char* path);
 
 private:
 
@@ -29,6 +30,12 @@ private:
 
 	//Socket descriptor
 	int socket_;
+
+	enum {
+		DNS_ERROR = -1,
+		SOCKET_FAILURE = -2,
+		CONNECTION_FAILURE = -3
+	};
 };
 
 #endif

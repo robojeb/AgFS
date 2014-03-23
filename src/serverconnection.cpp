@@ -8,6 +8,8 @@
 #include <sys/time.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <fuse.h>
+#include <fcntl.h>
 
 ServerConnection::ServerConnection(std::string hostname, std::string port, std::string key):
 	beatsMissed_{0},
@@ -17,15 +19,15 @@ ServerConnection::ServerConnection(std::string hostname, std::string port, std::
 	socket_ = dnsLookup(port.c_str());
 
 	switch (socket_){
-	case -1:
+	case DNS_ERROR:
 		std::cerr << "Failed DNS lookup" << std::endl;
 		return;
 		break;
-	case -2:
+	case SOCKET_FAILURE:
 		std::cerr << "Failed to create socket" << std::endl;
 		return;
 		break;
-	case -3:
+	case CONNECTION_FAILURE:
 		std::cerr << "Could not connect to server " << hostname << ":" << port << std::endl;
 		return;
 		break;
@@ -101,7 +103,27 @@ std::pair<struct stat, agerr_t> ServerConnection::getattr(char* path)
 	if(errVal >= 0) {
 		read(socket_, &readValues, sizeof(struct stat));
 	}
-	return std::pair<struct stat, int>(readValues, errVal);
+	return std::pair<struct stat, agerr_t>(readValues, errVal);
+}
+
+std::pair<struct statvfs, agerr_t> ServerConnection::statfs(char* path)
+{
+	//Write command and path
+	cmd_t cmd = cmd::GETATTR;
+	write(socket_, &cmd, sizeof(cmd_t));
+	agsize_t pathLen = strlen(path);
+	write(socket_, &pathLen, sizeof(agsize_t));
+	write(socket_, path, pathLen);
+	
+	struct statvfs readValues;
+	memset(&readValues, 0, sizeof(struct statvfs));
+	agerr_t errVal;
+
+	read(socket_, &errVal, sizeof(agerr_t));
+	if (errVal >= 0) {
+		read(socket_, &readValues, sizeof(struct statvfs));
+	}
+	return std::pair<struct statvfs, agerr_t>(readValues, errVal);
 }
 
 /*********************
@@ -121,17 +143,17 @@ int ServerConnection::dnsLookup(const char* port)
   hints.ai_flags = AI_CANONNAME;
   
   if ((error = getaddrinfo(hostname_.c_str(), port, &hints, &hostaddress)) != 0) {
-    return -1;
+    return DNS_ERROR;
   }
 
   fd = socket(hostaddress->ai_family, hostaddress->ai_socktype, hostaddress->ai_protocol);
 
   if (fd == -1) {
-  	return -2;
+  	return SOCKET_FAILURE;
   }
 
   if (connect(fd, hostaddress->ai_addr, hostaddress->ai_addrlen) == -1) {
-  	return -3;
+  	return CONNECTION_FAILURE;
   }
 
   freeaddrinfo(hostaddress);
