@@ -69,7 +69,7 @@ ServerConnection::ServerConnection(std::string hostname, std::string port, std::
 		std::cerr << "Connected to server" << std::endl;
 		break;
 	default: 
-		std::cerr << "Other/No response" << std::endl;
+		std::cerr << "Other/No response: " << servResp << std::endl;
 		close(socket_);
 		socket_ = -1;
 		break;
