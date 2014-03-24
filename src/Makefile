@@ -32,7 +32,7 @@ clean:
 agfs-client.o: agfs-client.cpp
 agfs.o: agfs.cpp serverconnection.hpp constants.hpp
 agfsd.o: agfsd.cpp constants.hpp agfs-server.hpp
-agfs-keygen.o: agfs-keygen.cpp
-agfs-server.o: agfs-server.cpp
+agfs-keygen.o: agfs-keygen.cpp constants.hpp
+agfs-server.o: agfs-server.cpp agfs-server.hpp constants.hpp
 serverconnection.o: serverconnection.cpp serverconnection.hpp \
   constants.hpp

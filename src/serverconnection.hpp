@@ -15,8 +15,8 @@ public:
 	//Returns the hostname
 	std::string hostname();
 
-	std::pair<struct stat, agerr_t> getattr(char* path);
-	std::pair<struct statvfs, agerr_t> statfs(char* path);
+	std::pair<struct stat, agerr_t> getattr(const char* path);
+	std::pair<struct statvfs, agerr_t> statfs(const char* path);
 
 private:
 

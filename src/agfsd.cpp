@@ -98,7 +98,10 @@ int main(int argc, char** argv){
       cerr << "Fork Error" << endl;
     } else if(pid == 0) {
       close(lfd);
-      agfsServer(connfd);
+      ClientConnection client{connfd};
+      if(client.connected()) {
+        client.processCommands();
+      }
       break;
     }
     cerr << "Forked client" << endl;

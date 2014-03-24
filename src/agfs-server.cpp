@@ -6,11 +6,11 @@
 #include <sys/ioctl.h>
 #include <cstring>
 #include <pwd.h>
+#include <sys/stat.h>
 #include "agfs-server.hpp"
 #include "constants.hpp"
-#include <boost/filesystem.hpp>
 
-void agfsServer(int connfd) {
+ClientConnection::ClientConnection(int connfd) {
 
 	//Set timeout
 	struct timeval tv;
@@ -47,6 +47,7 @@ void agfsServer(int connfd) {
 		cmd_t resp = cmd::INVALID_KEY;
 		write(connfd, &resp, sizeof(cmd_t));
 		close(connfd);
+		fd_ = -1;
 		return;
 	}
 
@@ -56,6 +57,7 @@ void agfsServer(int connfd) {
 		cmd_t resp = cmd::USER_NOT_FOUND;
 		write(connfd, &resp, sizeof(cmd_t));
 		close(connfd);
+		fd_ = -1;
 		return;
 	} else {
 		setuid(userPwd->pw_uid);
@@ -67,30 +69,41 @@ void agfsServer(int connfd) {
 		cmd_t resp = cmd::MOUNT_NOT_FOUND;
 		write(connfd, &resp, sizeof(cmd_t));
 		close(connfd);
+		fd_ = -1;
 		return;
 	}
 
+	fd_ = connfd;
+	mountPoint_ = mountPath;
+}
 
+bool ClientConnection::connected() {
+	return fd_ > -1;
+}
+
+void ClientConnection::processCommands() {
 	//Passed all checks accept connection and keep alive until heartbeat
 	//failure or explicit stop
 	cmd_t resp = cmd::ACCEPT;
-	write(connfd, &resp, sizeof(cmd_t));
+	write(fd_, &resp, sizeof(cmd_t));
 	while(1) {
 		cmd_t cmd;
-		int respVal = read(connfd, &cmd, sizeof(cmd_t));
+		int respVal = read(fd_, &cmd, sizeof(cmd_t));
 		if(respVal == -1) {
 			std::cout << "Missed heartbeat" << std::endl;
 		} else {
 			switch(cmd) {
 			case cmd::STOP:
-				close(connfd);
+				close(fd_);
+				fd_ = -1;
 				return;
 			case cmd::HEARTBEAT:
 				//respond to a heartbeat
 				cmd = cmd::HEARTBEAT;
-				write(connfd, &cmd, sizeof(cmd_t));
+				write(fd_, &cmd, sizeof(cmd_t));
 				break;
 			case cmd::GETATTR:
+				processGetAttr();
 				break;
 			default:
 				std::cerr << "Unknown command" << std::endl;
@@ -99,3 +112,40 @@ void agfsServer(int connfd) {
 		//Do stuff here
 	}
 }
+
+
+/*
+ * Incoming stack looks like:
+ * 
+ *      PATHLEN PATH
+ *
+ * Outgoing stack looks like:
+ *
+ *      ERROR STAT
+ */
+void ClientConnection::processGetAttr() {
+	agsize_t pathLen;
+	read(fd_, &pathLen, sizeof(agsize_t));
+	
+	char* path = (char*) malloc(sizeof(char) * pathLen + 1);
+	memset(path, 0, pathLen + 1);
+
+	read(fd_, path, pathLen);
+	boost::filesystem::path fusePath{path};
+	boost::filesystem::path file{mountPoint_};
+	file /= fusePath;
+
+	struct stat retValue;
+	memset(&retValue, 0, sizeof(struct stat));
+	agerr_t error;
+	if ((error = lstat(file.c_str(), &retValue)) < 0) {
+		error = errno;
+	}
+
+	fprintf(stderr, "Got stat call!\n");
+	fprintf(stderr, "Error %lu\n", error);
+	write(fd_, &error, sizeof(agerr_t));
+	write(fd_, &retValue, sizeof(struct stat));
+}
+
+

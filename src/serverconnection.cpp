@@ -88,7 +88,7 @@ bool ServerConnection::connected()
  * FUSE functions *
  ******************/
 
-std::pair<struct stat, agerr_t> ServerConnection::getattr(char* path)
+std::pair<struct stat, agerr_t> ServerConnection::getattr(const char* path)
 {
 	//Write command and path
 	cmd_t cmd = cmd::GETATTR;
@@ -106,7 +106,7 @@ std::pair<struct stat, agerr_t> ServerConnection::getattr(char* path)
 	return std::pair<struct stat, agerr_t>(readValues, errVal);
 }
 
-std::pair<struct statvfs, agerr_t> ServerConnection::statfs(char* path)
+std::pair<struct statvfs, agerr_t> ServerConnection::statfs(const char* path)
 {
 	//Write command and path
 	cmd_t cmd = cmd::GETATTR;

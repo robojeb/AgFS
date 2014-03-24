@@ -49,13 +49,18 @@ static std::vector<ServerConnection> connections;
 
 static int agfs_getattr(const char *path, struct stat *stbuf)
 {
-  int res;
-
-  res = lstat(path, stbuf);
+  memset(stbuf, 0, sizeof(struct stat));
+  agerr_t err = 0;
+  if (connections.size() > 0) {
+    std::pair<struct stat, agerr_t> retVal{connections.front().getattr(path)};
+    (*stbuf) = std::get<0>(retVal);
+    err = std::get<1>(retVal);
+  }
+  /*res = lstat(path, stbuf);
   if (res == -1)
-    return -errno;
+    return -errno;*/
 
-  return 0;
+  return -err;
 }
 
 static int agfs_access(const char *path, int mask)
