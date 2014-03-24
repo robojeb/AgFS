@@ -56,9 +56,6 @@ static int agfs_getattr(const char *path, struct stat *stbuf)
     (*stbuf) = std::get<0>(retVal);
     err = std::get<1>(retVal);
   }
-  /*res = lstat(path, stbuf);
-  if (res == -1)
-    return -errno;*/
 
   return -err;
 }

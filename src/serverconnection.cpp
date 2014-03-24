@@ -104,7 +104,7 @@ std::pair<struct stat, agerr_t> ServerConnection::getattr(const char* path)
 	agerr_t errVal;
 	read(socket_, &errVal, sizeof(agerr_t));
 	if(errVal >= 0) {
-		read(socket_, &readValues, sizeof(struct stat));
+		agfs_read_stat(socket_, readValues);
 	}
 	return std::pair<struct stat, agerr_t>(readValues, errVal);
 }

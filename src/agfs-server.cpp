@@ -139,10 +139,8 @@ void ClientConnection::processGetAttr() {
 		error = errno;
 	}
 
-	fprintf(stderr, "Got stat call!\n");
-	fprintf(stderr, "Error %lu\n", error);
 	write(fd_, &error, sizeof(agerr_t));
-	write(fd_, &retValue, sizeof(struct stat));
+	agfs_write_stat(fd_, retValue);
 }
 
 

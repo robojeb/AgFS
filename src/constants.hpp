@@ -7,7 +7,8 @@
 typedef uint16_t cmd_t;
 typedef uint64_t agsize_t;
 typedef int64_t agerr_t;
-
+typedef uint64_t agdev_t;
+typedef uint32_t agmode_t;
 
 constexpr int KEY_LEN = 256;
 constexpr size_t ASCII_KEY_LEN = 512;
