@@ -10,6 +10,7 @@
 #include <arpa/inet.h>
 #include "agfs-server.hpp"
 #include "constants.hpp"
+#include "agfsio.hpp"
 
 ClientConnection::ClientConnection(int connfd) {
 
@@ -45,8 +46,7 @@ ClientConnection::ClientConnection(int connfd) {
 	}
 
 	if(validKey == false) {
-		cmd_t resp = cmd::INVALID_KEY;
-		write(connfd, &resp, sizeof(cmd_t));
+		agfs_write_cmd(connfd, cmd::INVALID_KEY);
 		close(connfd);
 		fd_ = -1;
 		return;
@@ -55,8 +55,7 @@ ClientConnection::ClientConnection(int connfd) {
 	//Change user
 	struct passwd* userPwd = getpwnam(user.c_str());
 	if(userPwd == NULL) {
-		cmd_t resp = cmd::USER_NOT_FOUND;
-		write(connfd, &resp, sizeof(cmd_t));
+		agfs_write_cmd(connfd, cmd::USER_NOT_FOUND);
 		close(connfd);
 		fd_ = -1;
 		return;
@@ -67,8 +66,7 @@ ClientConnection::ClientConnection(int connfd) {
 
 	//Check that mount point exists
 	if(!boost::filesystem::exists(mountPath)) {
-		cmd_t resp = cmd::MOUNT_NOT_FOUND;
-		write(connfd, &resp, sizeof(cmd_t));
+		agfs_write_cmd(connfd, cmd::MOUNT_NOT_FOUND);
 		close(connfd);
 		fd_ = -1;
 		return;
@@ -85,12 +83,10 @@ bool ClientConnection::connected() {
 void ClientConnection::processCommands() {
 	//Passed all checks accept connection and keep alive until heartbeat
 	//failure or explicit stop
-	cmd_t resp = cmd::ACCEPT;
-	write(fd_, &resp, sizeof(cmd_t));
+	agfs_write_cmd(fd_, cmd::ACCEPT);
 	while(1) {
 		cmd_t cmd;
-		int respVal = read(fd_, &cmd, sizeof(cmd_t));
-		cmd = ntohs(cmd);
+		int respVal = agfs_read_cmd(fd_, cmd);
 		if(respVal == -1) {
 			std::cout << "Missed heartbeat" << std::endl;
 		} else {
@@ -101,8 +97,7 @@ void ClientConnection::processCommands() {
 				return;
 			case cmd::HEARTBEAT:
 				//respond to a heartbeat
-				cmd = cmd::HEARTBEAT;
-				write(fd_, &cmd, sizeof(cmd_t));
+				agfs_write_cmd(fd_, cmd::HEARTBEAT);
 				break;
 			case cmd::GETATTR:
 				processGetAttr();

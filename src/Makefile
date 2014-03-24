@@ -16,10 +16,10 @@ all: $(TARGETS)
 agfs-keygen: agfs-keygen.o
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
-agfsd: agfsd.o agfs-server.o
+agfsd: agfsd.o agfs-server.o agfsio.o
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
-agfs: agfs.o serverconnection.o
+agfs: agfs.o serverconnection.o agfsio.o
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
 # Make rule to clean compiled binaries
@@ -32,7 +32,8 @@ clean:
 agfs-client.o: agfs-client.cpp
 agfs.o: agfs.cpp serverconnection.hpp constants.hpp
 agfsd.o: agfsd.cpp constants.hpp agfs-server.hpp
+agfsio.o: agfsio.cpp
 agfs-keygen.o: agfs-keygen.cpp constants.hpp
-agfs-server.o: agfs-server.cpp agfs-server.hpp constants.hpp
+agfs-server.o: agfs-server.cpp agfs-server.hpp constants.hpp agfsio.hpp
 serverconnection.o: serverconnection.cpp serverconnection.hpp \
-  constants.hpp
+  constants.hpp agfsio.hpp

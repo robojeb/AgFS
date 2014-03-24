@@ -1,6 +1,7 @@
 #include <iostream>
 #include "serverconnection.hpp"
 #include "constants.hpp"
+#include "agfsio.hpp"
 #include <unistd.h>
 #include <cstring>
 #include <sys/socket.h>
@@ -11,6 +12,7 @@
 #include <fuse.h>
 #include <fcntl.h>
 #include <arpa/inet.h>
+#include <endian.h>
 
 ServerConnection::ServerConnection(std::string hostname, std::string port, std::string key):
 	beatsMissed_{0},
@@ -47,9 +49,8 @@ ServerConnection::ServerConnection(std::string hostname, std::string port, std::
 	//send key for verification
 	write(socket_, key.c_str(), ASCII_KEY_LEN);
 	cmd_t servResp;
-	int n = read(socket_, &servResp, sizeof(cmd_t));
-	servResp = ntohs(servResp);
-	std::cout << n << std::endl;
+	int n = agfs_read_cmd(socket_, servResp);
+	std::cout << servResp << std::endl;
 
 	switch(servResp) {
 	case cmd::INVALID_KEY:
