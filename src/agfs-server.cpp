@@ -7,6 +7,7 @@
 #include <cstring>
 #include <pwd.h>
 #include <sys/stat.h>
+#include <arpa/inet.h>
 #include "agfs-server.hpp"
 #include "constants.hpp"
 
@@ -89,6 +90,7 @@ void ClientConnection::processCommands() {
 	while(1) {
 		cmd_t cmd;
 		int respVal = read(fd_, &cmd, sizeof(cmd_t));
+		cmd = ntohs(cmd);
 		if(respVal == -1) {
 			std::cout << "Missed heartbeat" << std::endl;
 		} else {

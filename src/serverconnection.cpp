@@ -10,6 +10,7 @@
 #include <netdb.h>
 #include <fuse.h>
 #include <fcntl.h>
+#include <arpa/inet.h>
 
 ServerConnection::ServerConnection(std::string hostname, std::string port, std::string key):
 	beatsMissed_{0},
@@ -47,6 +48,7 @@ ServerConnection::ServerConnection(std::string hostname, std::string port, std::
 	write(socket_, key.c_str(), ASCII_KEY_LEN);
 	cmd_t servResp;
 	int n = read(socket_, &servResp, sizeof(cmd_t));
+	servResp = ntohs(servResp);
 	std::cout << n << std::endl;
 
 	switch(servResp) {
