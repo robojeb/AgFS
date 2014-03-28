@@ -23,28 +23,55 @@ struct agfs_stat {
 
 int agfs_write_stat(int fd, struct stat& buf)
 {
-	struct agfs_stat result;
-	memset(&result, 0, sizeof(struct agfs_stat));
-	result.st_dev = buf.st_dev;
-	result.st_mode = buf.st_mode;
-	result.size = buf.st_size;
+	int temp, total_written;
 
-	return write(fd, &result, sizeof(struct stat));
+	agdev_t dev = buf.st_dev;
+	if ((temp = write(fd, &dev, sizeof(agdev_t))) < 0) {
+		return temp;
+	}
+	total_written += temp;
+
+	agmode_t mode = buf.st_mode;
+	if ((temp = write(fd, &mode, sizeof(agmode_t))) < 0) {
+		return temp;
+	}
+	total_written += temp;
+
+	agsize_t size = buf.st_size;
+	if ((temp = write(fd, &size, sizeof(agsize_t))) < 0) {
+		return temp;
+	}
+	total_written += temp;
+
+	return total_written;
 }
 
 int agfs_read_stat(int fd, struct stat& buf)
 {
-	struct agfs_stat result;
-	memset(&result, 0, sizeof(struct agfs_stat));
+	int temp, total_read;
+	memset(&buf, 0, sizeof(struct stat));
 
-	//Switch the bytes of all the fields around.
-	int err = 0;
-	if ((err = read(fd, &result, sizeof(struct agfs_stat))) >= 0) {
-		memset(&buf, 0, sizeof(struct stat));
-		buf.st_dev = be64toh(result.st_dev);
-		buf.st_mode = be32toh(result.st_mode);
-		buf.st_size = be64toh(result.st_size);
+	agdev_t dev;
+	if ((temp = write(fd, &dev, sizeof(agdev_t))) < 0) {
+		return temp;
 	}
+	total_read += temp;
 
-	return err;
+	agmode_t mode;
+	if ((temp = read(fd, &mode, sizeof(agmode_t))) < 0) {
+		return temp;
+	}
+	total_read += temp;
+
+	agsize_t size;
+	if ((temp = write(fd, &size, sizeof(agsize_t))) < 0) {
+		return temp;
+	}
+	total_read += temp;
+
+	buf.st_size = size;
+	buf.st_mode = mode;
+	buf.st_dev = dev;
+
+	return total_read;
 }
