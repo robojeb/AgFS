@@ -129,6 +129,29 @@ std::pair<struct statvfs, agerr_t> ServerConnection::statfs(const char* path)
 	return std::pair<struct statvfs, agerr_t>(readValues, errVal);
 }
 
+std::pair<agerr_t, agerr_t> ServerConnection::access(const char* path, int mask)
+{
+	//Write command and path
+	cmd_t cmd = cmd::ACCESS;
+	write(socket_, &cmd, sizeof(cmd_t));
+	agsize_t pathLen = strlen(path);
+	write(socket_, &pathLen, sizeof(agsize_t));
+	write(socket_, path, pathLen);
+	agerr_t mask64 = mask;
+	write(socket_, &mask64, sizeof(agerr_t));
+	
+	agerr_t retValue;
+	memset(&retValue, 0, sizeof(agerr_t));
+	
+	agerr_t errVal;
+	read(socket_, &errVal, sizeof(agerr_t));
+	if (errVal >= 0) {
+		read(socket_, &retValue, sizeof(agerr_t));
+	}
+
+	return std::pair<agerr_t, agerr_t>(retValue, errVal);
+}
+
 /*********************
  * Private Functions *
  *********************/

@@ -13,6 +13,7 @@ public:
 
 private:
 	void processGetAttr();
+	void processAccess();
 
 	boost::filesystem::path mountPoint_;
 	int fd_;

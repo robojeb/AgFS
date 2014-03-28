@@ -17,6 +17,7 @@ public:
 
 	std::pair<struct stat, agerr_t> getattr(const char* path);
 	std::pair<struct statvfs, agerr_t> statfs(const char* path);
+	std::pair<agerr_t, agerr_t> access(const char* path, int mask);
 
 private:
 

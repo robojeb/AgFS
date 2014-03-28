@@ -9,6 +9,7 @@ typedef uint64_t agsize_t;
 typedef int64_t agerr_t;
 typedef uint64_t agdev_t;
 typedef uint32_t agmode_t;
+typedef uint32_t agmask_t;
 
 constexpr int KEY_LEN = 256;
 constexpr size_t ASCII_KEY_LEN = 512;
@@ -31,6 +32,7 @@ namespace cmd {
 	constexpr cmd_t INVALID_KEY = 4;
 	constexpr cmd_t MOUNT_NOT_FOUND = 5;
 	constexpr cmd_t USER_NOT_FOUND = 6;
+	constexpr cmd_t ACCESS = 7;
 }
 
 #endif

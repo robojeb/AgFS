@@ -123,6 +123,7 @@ void ClientConnection::processCommands() {
 void ClientConnection::processGetAttr() {
 	agsize_t pathLen;
 	read(fd_, &pathLen, sizeof(agsize_t));
+	pathLen = be64toh(pathLen);
 	
 	char* path = (char*) malloc(sizeof(char) * pathLen + 1);
 	memset(path, 0, pathLen + 1);
@@ -141,6 +142,41 @@ void ClientConnection::processGetAttr() {
 
 	write(fd_, &error, sizeof(agerr_t));
 	agfs_write_stat(fd_, retValue);
+}
+
+/*
+ * Incoming stack looks like:
+ * 
+ *      PATHLEN PATH MASK
+ *
+ * Outgoing stack looks like:
+ *
+ *      ERROR RESULT
+ */
+void ClientConnection::processAccess() {
+	agsize_t pathLen;
+	read(fd_, &pathLen, sizeof(agsize_t));
+	pathLen = be64toh(pathLen);
+	
+	char* path = (char*) malloc(sizeof(char) * pathLen + 1);
+	memset(path, 0, pathLen + 1);
+
+	read(fd_, path, pathLen);
+	boost::filesystem::path fusePath{path};
+	boost::filesystem::path file{mountPoint_};
+	file /= fusePath;
+
+	//Grab the access mask.
+	agmask_t mask;
+	agerr_t error = read(fd_, &mask, sizeof(agmask_t));
+	error = htobe64(error);
+
+	//Attempt to access the file.
+	agerr_t result = access(path, mask);
+	result = htobe64(result);
+
+	write(fd_, &error, sizeof(agerr_t));
+	write(fd_, &result, sizeof(result));
 }
 
 
