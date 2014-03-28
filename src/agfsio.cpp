@@ -1,6 +1,9 @@
 #include "agfsio.hpp"
 #include <endian.h>
 #include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <string.h>
 
 int agfs_write_cmd(int fd, cmd_t cmd)
 {
@@ -23,7 +26,7 @@ struct agfs_stat {
 
 int agfs_write_stat(int fd, struct stat& buf)
 {
-	int temp, total_written;
+	int temp, total_written = 0;
 
 	agdev_t dev = buf.st_dev;
 	if ((temp = write(fd, &dev, sizeof(agdev_t))) < 0) {
@@ -48,7 +51,7 @@ int agfs_write_stat(int fd, struct stat& buf)
 
 int agfs_read_stat(int fd, struct stat& buf)
 {
-	int temp, total_read;
+	int temp, total_read = 0;
 	memset(&buf, 0, sizeof(struct stat));
 
 	agdev_t dev;
