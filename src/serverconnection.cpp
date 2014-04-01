@@ -95,9 +95,8 @@ std::pair<struct stat, agerr_t> ServerConnection::getattr(const char* path)
 	//Write command and path
 	cmd_t cmd = cmd::GETATTR;
 	agfs_write_cmd(socket_, cmd);
-	agsize_t pathLen = htobe64(strlen(path));
-	write(socket_, &pathLen, sizeof(agsize_t));
-	write(socket_, path, pathLen);
+	
+	agfs_write_string(socket_, path);
 
 	struct stat readValues;
 	memset(&readValues, 0, sizeof(struct stat));
@@ -117,9 +116,8 @@ std::pair<struct statvfs, agerr_t> ServerConnection::statfs(const char* path)
 	//Write command and path
 	cmd_t cmd = cmd::GETATTR;
 	agfs_write_cmd(socket_, cmd);
-	agsize_t pathLen = htobe64(strlen(path));
-	write(socket_, &pathLen, sizeof(agsize_t));
-	write(socket_, path, pathLen);
+	
+	agfs_write_string(socket_, path);
 	
 	struct statvfs readValues;
 	memset(&readValues, 0, sizeof(struct statvfs));
@@ -138,11 +136,12 @@ std::pair<struct statvfs, agerr_t> ServerConnection::statfs(const char* path)
 agerr_t ServerConnection::access(const char* path, int mask)
 {
 	//Write command and path
-	cmd_t cmd = htobe16(cmd::ACCESS);
-	write(socket_, &cmd, sizeof(cmd_t));
-	agsize_t pathLen = strlen(path);
-	write(socket_, &pathLen, sizeof(agsize_t));
-	write(socket_, path, pathLen);
+	cmd_t cmd = cmd::ACCESS;
+	agfs_write_cmd(cmd);
+
+	agfs_write_string(path);
+
+	//Write the mask to the socket.
 	agmask_t mask64 = htobe64(mask);
 	write(socket_, &mask64, sizeof(agerr_t));
 	
@@ -159,6 +158,7 @@ std::pair<std::vector<std::string>, agerr_t> ServerConnection::readdir(const cha
 	//Write command and path
 	cmd_t cmd = cmd::READDIR;
 	agfs_write_cmd(socket_, cmd);
+
 	agfs_write_string(socket_, path);
 	
 	agerr_t error = 0;
