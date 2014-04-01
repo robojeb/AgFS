@@ -103,6 +103,9 @@ void ClientConnection::processCommands() {
 			case cmd::GETATTR:
 				processGetAttr();
 				break;
+			case cmd::READDIR:
+				processReaddir();
+				break;
 			default:
 				std::cerr << "Unknown command" << std::endl;
 			}

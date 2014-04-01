@@ -34,6 +34,7 @@ namespace cmd {
 	constexpr cmd_t MOUNT_NOT_FOUND = 5;
 	constexpr cmd_t USER_NOT_FOUND = 6;
 	constexpr cmd_t ACCESS = 7;
+	constexpr cmd_t READDIR = 8;
 }
 
 #endif
