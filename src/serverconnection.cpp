@@ -137,9 +137,9 @@ agerr_t ServerConnection::access(const char* path, int mask)
 {
 	//Write command and path
 	cmd_t cmd = cmd::ACCESS;
-	agfs_write_cmd(cmd);
+	agfs_write_cmd(socket_, cmd);
 
-	agfs_write_string(path);
+	agfs_write_string(socket_, path);
 
 	//Write the mask to the socket.
 	agmask_t mask64 = htobe64(mask);
