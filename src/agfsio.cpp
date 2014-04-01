@@ -81,24 +81,46 @@ int agfs_write_stat(int fd, struct stat& buf)
 	int temp, total_written = 0;
 
 	agdev_t dev = buf.st_dev;
+	dev = htobe64(dev);
 	if ((temp = write(fd, &dev, sizeof(agdev_t))) < 0) {
 		return temp;
 	}
 	total_written += temp;
 
 	agmode_t mode = buf.st_mode;
+	mode = htobe32(mode);
 	if ((temp = write(fd, &mode, sizeof(agmode_t))) < 0) {
 		return temp;
 	}
 	total_written += temp;
 
 	agsize_t size = buf.st_size;
+	size = htobe64(size);
 	if ((temp = write(fd, &size, sizeof(agsize_t))) < 0) {
 		return temp;
 	}
 	total_written += temp;
 
+	agtime_t atime = buf.st_atime;
+	atime = htobe64(atime);
+	if ((temp = write(fd, &atime, sizeof(agtime_t))) < 0) {
+		return temp;
+	}
+	total_written += temp;
 
+	agtime_t mtime = buf.st_mtime;
+	mtime = htobe64(mtime);
+	if ((temp = write(fd, &mtime, sizeof(agtime_t))) < 0) {
+		return temp;
+	}
+	total_written += temp;
+
+	agtime_t ctimestamp = buf.st_ctime;
+	ctimestamp = htobe64(ctimestamp);
+	if ((temp = write(fd, &ctimestamp, sizeof(agtime_t))) < 0) {
+		return temp;
+	}
+	total_written += temp;
 
 	return total_written;
 }
@@ -109,26 +131,53 @@ int agfs_read_stat(int fd, struct stat& buf)
 	memset(&buf, 0, sizeof(struct stat));
 
 	agdev_t dev;
-	if ((temp = write(fd, &dev, sizeof(agdev_t))) < 0) {
+	if ((temp = read(fd, &dev, sizeof(agdev_t))) < 0) {
 		return temp;
 	}
+	dev = be64toh(dev);
 	total_read += temp;
 
 	agmode_t mode;
 	if ((temp = read(fd, &mode, sizeof(agmode_t))) < 0) {
 		return temp;
 	}
+	mode = be32toh(mode);
 	total_read += temp;
 
 	agsize_t size;
-	if ((temp = write(fd, &size, sizeof(agsize_t))) < 0) {
+	if ((temp = read(fd, &size, sizeof(agsize_t))) < 0) {
 		return temp;
 	}
+	size = be64toh(size);
+	total_read += temp;
+
+	agtime_t atime = 0;
+	if ((temp = read(fd, &atime, sizeof(agtime_t))) < 0) {
+		return temp;
+	}
+	atime = be64toh(atime);
+	total_read += temp;
+
+	agtime_t mtime = 0;
+	if ((temp = read(fd, &mtime, sizeof(agtime_t))) < 0) {
+		return temp;
+	}
+	mtime = be64toh(mtime);
+	total_read += temp;
+
+	agtime_t ctimestamp = 0;
+	if ((temp = read(fd, &ctimestamp, sizeof(agtime_t))) < 0) {
+		return temp;
+	}
+	ctimestamp = be64toh(ctimestamp);
 	total_read += temp;
 
 	buf.st_size = size;
 	buf.st_mode = mode;
 	buf.st_dev = dev;
+	buf.st_atime = atime;
+	buf.st_mtime = mtime;
+	buf.st_ctime = ctimestamp;
 
 	return total_read;
 }
