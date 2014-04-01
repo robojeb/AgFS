@@ -12,14 +12,30 @@ using namespace std;
 using namespace boost::filesystem;
 
 //Key len in bytes (Will be encoded in hex)s
-static const path DIR_PATH = path(KEY_NAME_PATH);
+static const path DIR_PATH{KEY_NAME_PATH};
 
 static const char hexValues[16] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
+
+void usage()
+{
+  cout << "usage: agfs-keygen {host dns name/ip addr} {port} {user} {local mount point} {key file name}" << endl;
+  cout << "  {host dns name/ip addr}" << endl;
+  cout << "  Your dns name or ip address." << endl << endl;
+  cout << "  {port}" << endl;
+  cout << "  The end port clients should use to communicate with you." << endl << endl;
+  cout << "  {user}" << endl;
+  cout << "  The user account on your system clients with this key will be able to use." << endl << endl;
+  cout << "  {local mount point}" << endl;
+  cout << "  Where clients will mount your local file system." << endl << endl;
+  cout << "  {key file name}" << endl;
+  cout << "  The name of the key file on the local machine." << endl << endl << endl;
+  cout << "  This program is meant to be run on an AgFS server to generate keys for other users to copy to their machines." << endl;
+}
 
 int main(int argc, char** argv)
 {
   if(argc != 6) {
-    cout << "usage: agfs-keygen {host dns name/ip addr} {port} {user} {local mount point} {key file name}" << endl;
+    usage();
     return 0;
   }
   
