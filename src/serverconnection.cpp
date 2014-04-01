@@ -154,6 +154,32 @@ agerr_t ServerConnection::access(const char* path, int mask)
 	return retValue;
 }
 
+std::pair<std::vector<std::string>, agerr_t> ServerConnection::readdir(const char* path)
+{
+	//Write command and path
+	cmd_t cmd = cmd::READDIR;
+	agfs_write_cmd(socket_, cmd);
+	agfs_write_string(socket_, path);
+	
+	agerr_t error = 0;
+	agfs_read_error(socket_, error);
+
+	std::vector<std::string> files;
+	if (error >= 0) {
+		agsize_t count = 0;
+		read(socket_, &count, sizeof(agsize_t));
+		count = be64toh(count);
+
+		while (count-- > 0) {
+			std::string file;
+			agfs_read_string(socket_, file);
+			files.push_back(file);
+		}
+	}
+
+	return std::pair<std::vector<std::string>, agerr_t>{files, error};
+}
+
 /*********************
  * Private Functions *
  *********************/

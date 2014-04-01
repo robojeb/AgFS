@@ -39,6 +39,7 @@
 #include <boost/filesystem.hpp>
 #include "serverconnection.hpp"
 #include <sys/types.h>
+#include <vector>
 
 /**************
  * GLOBALS *
@@ -87,27 +88,18 @@ static int agfs_readlink(const char *path, char *buf, size_t size)
 static int agfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		       off_t offset, struct fuse_file_info *fi)
 {
-  DIR *dp;
-  struct dirent *de;
+  agerr_t err = 0;
+  if (connections.size() > 0) {
+    std::pair<std::vector<std::string>, agerr_t> retVal{connections.front().readdir(path)};
+    std::vector<std::string> files = std::get<0>(retVal);
+    err = std::get<1>(retVal);
 
-  (void) offset;
-  (void) fi;
-
-  dp = opendir(path);
-  if (dp == NULL)
-    return -errno;
-
-  while ((de = readdir(dp)) != NULL) {
-    struct stat st;
-    memset(&st, 0, sizeof(st));
-    st.st_ino = de->d_ino;
-    st.st_mode = de->d_type << 12;
-    if (filler(buf, de->d_name, &st, 0))
-      break;
+    for (size_t i = 0; i < files.size(); i++) {
+      filler(buf, files[i].c_str(), NULL, 0);
+    }
   }
 
-  closedir(dp);
-  return 0;
+  return -err;
 }
 
 static int agfs_mknod(const char *path, mode_t mode, dev_t rdev)
