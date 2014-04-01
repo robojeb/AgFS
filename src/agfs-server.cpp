@@ -4,10 +4,12 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
+#include <dirent.h>
 #include <cstring>
 #include <pwd.h>
 #include <sys/stat.h>
 #include <arpa/inet.h>
+#include <errno.h>
 #include "agfs-server.hpp"
 #include "constants.hpp"
 #include "agfsio.hpp"
@@ -164,10 +166,52 @@ void ClientConnection::processAccess() {
 	read(fd_, &mask, sizeof(agmask_t));
 
 	//Attempt to access the file.
-	agerr_t result = access(path.c_str(), mask);
+	agerr_t result = access(file.c_str(), mask);
 
 	//Write our result
 	agfs_write_error(fd_, result);
 }
 
+
+/*
+ * Incoming stack looks like:
+ * 
+ *      STRING
+ *
+ * Outgoing stack looks like:
+ *
+ *      ERROR COUNT STRING [STRING]*
+ */
+void ClientConnection::processReaddir() {
+	std::string path;
+	agfs_read_string(fd_, path);
+
+	//Cosntruct the filepath
+	boost::filesystem::path fusePath{path};
+	boost::filesystem::path file{mountPoint_};
+	file /= fusePath;
+
+	agerr_t error = 0;
+	if (!boost::filesystem::exists(file)) {
+		error = ENOENT;
+	}
+
+	if (!boost::filesystem::is_directory(file)) {
+		error = ENOTDIR;
+	}
+	agfs_write_error(fd_, -error);
+
+	agsize_t count = 0;
+	boost::filesystem::directory_iterator end_itr{};
+	for (boost::filesystem::directory_iterator dir_itr(file);
+		dir_itr != end_itr; count++) {
+	}
+	count = htobe64(count);
+	write(fd_, &count, sizeof(agsize_t));
+
+	for (boost::filesystem::directory_iterator dir_itr(file);
+		dir_itr != end_itr; count++) {
+		agfs_write_string(fd_, dir_itr->path().filename().c_str());
+	}
+}
 
