@@ -366,37 +366,6 @@ static int agfs_removexattr(const char *path, const char *name)
 }
 #endif /* HAVE_SETXATTR */
 
-static struct fuse_operations agfs_oper = {
-  .getattr= agfs_getattr,
-  .access= agfs_access,
-  .readlink= agfs_readlink,
-  .readdir= agfs_readdir,
-  .mknod= agfs_mknod,
-  .mkdir= agfs_mkdir,
-  .symlink= agfs_symlink,
-  .unlink= agfs_unlink,
-  .rmdir= agfs_rmdir,
-  .rename= agfs_rename,
-  .link= agfs_link,
-  .chmod= agfs_chmod,
-  .chown= agfs_chown,
-  .truncate= agfs_truncate,
-  .utimens= agfs_utimens,
-  .open= agfs_open,
-  .read= agfs_read,
-  .write= agfs_write,
-  .statfs= agfs_statfs,
-  .release= agfs_release,
-  .fsync= agfs_fsync,
-#ifdef HAVE_SETXATTR
-  .setxattr= agfs_setxattr,
-  .getxattr= agfs_getxattr,
-  .listxattr= agfs_listxattr,
-  .removexattr= agfs_removexattr,
-#endif
-};
-
-
 /************************************
  * OPTIONS PROCESSING (Not working) *
  ************************************/
@@ -463,6 +432,8 @@ static const std::string EXTENSION(".agkey");
 
 using namespace boost::filesystem;
 
+static struct fuse_operations agfs_oper;
+
 int main(int argc, char *argv[])
 {
   path homeDir{getenv("HOME")};
@@ -491,5 +462,36 @@ int main(int argc, char *argv[])
       }
     }
   }
+
+  memset(&agfs_oper, 0, sizeof(struct fuse_operations));
+
+  agfs_oper.getattr= agfs_getattr;
+  agfs_oper.access= agfs_access;
+  agfs_oper.readlink= agfs_readlink;
+  agfs_oper.readdir= agfs_readdir;
+  agfs_oper.mknod= agfs_mknod;
+  agfs_oper.mkdir= agfs_mkdir;
+  agfs_oper.symlink= agfs_symlink;
+  agfs_oper.unlink= agfs_unlink;
+  agfs_oper.rmdir= agfs_rmdir;
+  agfs_oper.rename= agfs_rename;
+  agfs_oper.link= agfs_link;
+  agfs_oper.chmod= agfs_chmod;
+  agfs_oper.chown= agfs_chown;
+  agfs_oper.truncate= agfs_truncate;
+  agfs_oper.utimens= agfs_utimens;
+  agfs_oper.open= agfs_open;
+  agfs_oper.read= agfs_read;
+  agfs_oper.write= agfs_write;
+  agfs_oper.statfs= agfs_statfs;
+  agfs_oper.release= agfs_release;
+  agfs_oper.fsync= agfs_fsync;
+#ifdef HAVE_SETXATTR
+  agfs_oper.setxattr= agfs_setxattr;
+  agfs_oper.getxattr= agfs_getxattr;
+  agfs_oper.listxattr= agfs_listxattr;
+  agfs_oper.removexattr= agfs_removexattr;
+#endif
+
   return fuse_main(argc, argv, &agfs_oper, NULL);
 }
