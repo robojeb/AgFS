@@ -96,8 +96,7 @@ void ClientConnection::processCommands() {
 				fd_ = -1;
 				return;
 			case cmd::HEARTBEAT:
-				//respond to a heartbeat
-				agfs_write_cmd(fd_, cmd::HEARTBEAT);
+				processHeartbeat();
 				break;
 			case cmd::GETATTR:
 				processGetAttr();
@@ -110,25 +109,23 @@ void ClientConnection::processCommands() {
 	}
 }
 
+void ClientConnection::processHeartbeat() {
+	agfs_write_cmd(fd_, cmd::HEARTBEAT);
+}
+
 
 /*
  * Incoming stack looks like:
  * 
- *      PATHLEN PATH
+ *      STRING
  *
  * Outgoing stack looks like:
  *
  *      ERROR STAT
  */
 void ClientConnection::processGetAttr() {
-	agsize_t pathLen;
-	read(fd_, &pathLen, sizeof(agsize_t));
-	pathLen = be64toh(pathLen);
-	
-	char* path = (char*) malloc(sizeof(char) * pathLen + 1);
-	memset(path, 0, pathLen + 1);
-
-	read(fd_, path, pathLen);
+	std::string path;
+	agfs_read_string(fd_, path);
 	boost::filesystem::path fusePath{path};
 	boost::filesystem::path file{mountPoint_};
 	file /= fusePath;
@@ -140,43 +137,37 @@ void ClientConnection::processGetAttr() {
 		error = errno;
 	}
 
-	write(fd_, &error, sizeof(agerr_t));
+	agfs_write_error(fd_, error);
 	agfs_write_stat(fd_, retValue);
 }
 
 /*
  * Incoming stack looks like:
  * 
- *      PATHLEN PATH MASK
+ *      STRING MASK
  *
  * Outgoing stack looks like:
  *
- *      ERROR RESULT
+ *      ERROR
  */
 void ClientConnection::processAccess() {
-	agsize_t pathLen;
-	read(fd_, &pathLen, sizeof(agsize_t));
-	pathLen = be64toh(pathLen);
-	
-	char* path = (char*) malloc(sizeof(char) * pathLen + 1);
-	memset(path, 0, pathLen + 1);
+	std::string path;
+	agfs_read_string(fd_, path);
 
-	read(fd_, path, pathLen);
+	//Cosntruct the filepath
 	boost::filesystem::path fusePath{path};
 	boost::filesystem::path file{mountPoint_};
 	file /= fusePath;
 
 	//Grab the access mask.
 	agmask_t mask;
-	agerr_t error = read(fd_, &mask, sizeof(agmask_t));
-	error = htobe64(error);
+	read(fd_, &mask, sizeof(agmask_t));
 
 	//Attempt to access the file.
-	agerr_t result = access(path, mask);
-	result = htobe64(result);
+	agerr_t result = access(path.c_str(), mask);
 
-	write(fd_, &error, sizeof(agerr_t));
-	write(fd_, &result, sizeof(result));
+	//Write our result
+	agfs_write_error(fd_, result);
 }
 
 

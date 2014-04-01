@@ -18,11 +18,63 @@ int agfs_read_cmd(int fd, cmd_t& cmd)
 	return err;
 }
 
-struct agfs_stat {
-	agdev_t st_dev;
-	agmode_t st_mode;
-	agsize_t st_size;
-};
+int agfs_write_error(int fd, agerr_t err)
+{
+	err = htobe64(err);
+	return write(fd, &err, sizeof(agerr_t));
+}
+
+int agfs_read_error(int fd, agerr_t& err)
+{
+	int error = read(fd, &err, sizeof(agerr_t));
+	err = be64toh(err);
+	return error;
+}
+
+int agfs_write_string(int fd, const char* str)
+{
+	int total_written = 0, err;
+	agsize_t pathLen = htobe64(strlen(str));
+	if ((err = write(fd, &pathLen, sizeof(agsize_t))) < 0)
+	{
+		return err;
+	}
+	total_written += err;
+
+	if ((err = write(fd, str, pathLen)) < 0)
+	{
+		return err;
+	}
+	total_written += err;
+
+	return total_written;
+}
+
+int agfs_read_string(int fd, std::string& str)
+{
+	int total_read = 0, err;
+	agsize_t pathLen = 0;
+	if ((err = read(fd, &pathLen, sizeof(agsize_t))) < 0)
+	{
+		return err;
+	}
+	total_read += err;
+	pathLen = be64toh(pathLen);
+
+	char* string = (char*)malloc(sizeof(char) * (pathLen + 1));
+	err = read(fd, string, pathLen);
+	string[pathLen] = 0;
+	str = string;
+	free(string);
+
+	if (err < 0)
+	{
+		return err;
+	}
+	total_read += err;
+
+	return total_read;
+}
 
 int agfs_write_stat(int fd, struct stat& buf)
 {
@@ -45,6 +97,8 @@ int agfs_write_stat(int fd, struct stat& buf)
 		return temp;
 	}
 	total_written += temp;
+
+
 
 	return total_written;
 }

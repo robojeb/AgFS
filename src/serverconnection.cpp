@@ -49,8 +49,7 @@ ServerConnection::ServerConnection(std::string hostname, std::string port, std::
 	//send key for verification
 	write(socket_, key.c_str(), ASCII_KEY_LEN);
 	cmd_t servResp;
-	int n = agfs_read_cmd(socket_, servResp);
-	std::cout << servResp << std::endl;
+	agfs_read_cmd(socket_, servResp);
 
 	switch(servResp) {
 	case cmd::INVALID_KEY:
@@ -95,17 +94,21 @@ std::pair<struct stat, agerr_t> ServerConnection::getattr(const char* path)
 {
 	//Write command and path
 	cmd_t cmd = cmd::GETATTR;
-	write(socket_, &cmd, sizeof(cmd_t));
-	agsize_t pathLen = strlen(path);
+	agfs_write_cmd(socket_, cmd);
+	agsize_t pathLen = htobe64(strlen(path));
 	write(socket_, &pathLen, sizeof(agsize_t));
 	write(socket_, path, pathLen);
+
 	struct stat readValues;
 	memset(&readValues, 0, sizeof(struct stat));
-	agerr_t errVal;
-	read(socket_, &errVal, sizeof(agerr_t));
+
+	agerr_t errVal = 0;
+	agfs_read_error(socket_, errVal);
+
 	if(errVal >= 0) {
 		agfs_read_stat(socket_, readValues);
 	}
+
 	return std::pair<struct stat, agerr_t>(readValues, errVal);
 }
 
@@ -113,43 +116,42 @@ std::pair<struct statvfs, agerr_t> ServerConnection::statfs(const char* path)
 {
 	//Write command and path
 	cmd_t cmd = cmd::GETATTR;
-	write(socket_, &cmd, sizeof(cmd_t));
-	agsize_t pathLen = strlen(path);
+	agfs_write_cmd(socket_, cmd);
+	agsize_t pathLen = htobe64(strlen(path));
 	write(socket_, &pathLen, sizeof(agsize_t));
 	write(socket_, path, pathLen);
 	
 	struct statvfs readValues;
 	memset(&readValues, 0, sizeof(struct statvfs));
+	
 	agerr_t errVal;
-
 	read(socket_, &errVal, sizeof(agerr_t));
+	errVal = be64toh(errVal);
+	
 	if (errVal >= 0) {
 		read(socket_, &readValues, sizeof(struct statvfs));
 	}
+
 	return std::pair<struct statvfs, agerr_t>(readValues, errVal);
 }
 
-std::pair<agerr_t, agerr_t> ServerConnection::access(const char* path, int mask)
+agerr_t ServerConnection::access(const char* path, int mask)
 {
 	//Write command and path
-	cmd_t cmd = cmd::ACCESS;
+	cmd_t cmd = htobe16(cmd::ACCESS);
 	write(socket_, &cmd, sizeof(cmd_t));
 	agsize_t pathLen = strlen(path);
 	write(socket_, &pathLen, sizeof(agsize_t));
 	write(socket_, path, pathLen);
-	agerr_t mask64 = mask;
+	agmask_t mask64 = htobe64(mask);
 	write(socket_, &mask64, sizeof(agerr_t));
 	
 	agerr_t retValue;
 	memset(&retValue, 0, sizeof(agerr_t));
-	
-	agerr_t errVal;
-	read(socket_, &errVal, sizeof(agerr_t));
-	if (errVal >= 0) {
-		read(socket_, &retValue, sizeof(agerr_t));
-	}
+	read(socket_, &retValue, sizeof(agerr_t));
+	retValue = be64toh(retValue);
 
-	return std::pair<agerr_t, agerr_t>(retValue, errVal);
+	return retValue;
 }
 
 /*********************

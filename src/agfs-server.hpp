@@ -14,6 +14,7 @@ public:
 private:
 	void processGetAttr();
 	void processAccess();
+	void processHeartbeat();
 
 	boost::filesystem::path mountPoint_;
 	int fd_;
