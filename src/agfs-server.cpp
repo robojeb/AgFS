@@ -99,6 +99,7 @@ void ClientConnection::processCommands() {
 				fd_ = -1;
 				return;
 			case cmd::HEARTBEAT:
+				std::cerr << "Received heartbeat" << std::endl;
 				processHeartbeat();
 				break;
 			case cmd::GETATTR:
@@ -106,9 +107,11 @@ void ClientConnection::processCommands() {
 				processGetAttr();
 				break;
 			case cmd::READDIR:
+				std::cerr << "READDIR called" << std::endl;
 				processReaddir();
 				break;
 			case cmd::ACCESS:
+				std::cerr << "ACCESS called" << std::endl;
 				processAccess();
 				break;
 			default:
@@ -212,13 +215,14 @@ void ClientConnection::processReaddir() {
 	agsize_t count = 0;
 	boost::filesystem::directory_iterator end_itr{};
 	for (boost::filesystem::directory_iterator dir_itr(file);
-		dir_itr != end_itr; count++) {
+		dir_itr != end_itr; dir_itr++) {
+		count++;
 	}
 	count = htobe64(count);
 	write(fd_, &count, sizeof(agsize_t));
 
 	for (boost::filesystem::directory_iterator dir_itr(file);
-		dir_itr != end_itr; count++) {
+		dir_itr != end_itr; dir_itr++) {
 		agfs_write_string(fd_, dir_itr->path().filename().c_str());
 	}
 }
