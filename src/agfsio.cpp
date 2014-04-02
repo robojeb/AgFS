@@ -34,7 +34,8 @@ int agfs_read_error(int fd, agerr_t& err)
 int agfs_write_string(int fd, const char* str)
 {
 	int total_written = 0, err;
-	agsize_t pathLen = htobe64(strlen(str));
+	agsize_t pathLen = strlen(str);
+	pathLen = htobe64(pathLen);
 	if ((err = write(fd, &pathLen, sizeof(agsize_t))) < 0)
 	{
 		return err;
