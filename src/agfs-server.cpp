@@ -210,7 +210,7 @@ void ClientConnection::processReaddir() {
 	if (!boost::filesystem::is_directory(file)) {
 		error = -ENOTDIR;
 	}
-	agfs_write_error(fd_, -error);
+	agfs_write_error(fd_, error);
 
 	agsize_t count = 0;
 	boost::filesystem::directory_iterator end_itr{};
