@@ -52,10 +52,14 @@ static int agfs_getattr(const char *path, struct stat *stbuf)
 {
   memset(stbuf, 0, sizeof(struct stat));
   agerr_t err = 0;
-  if (connections.size() > 0) {
-    std::pair<struct stat, agerr_t> retVal{connections.front().getattr(path)};
-    (*stbuf) = std::get<0>(retVal);
+  for (size_t i = 0; i < connections.size(); i++) {
+    std::pair<struct stat, agerr_t> retVal{connections[i].getattr(path)};
     err = std::get<1>(retVal);
+
+    if (err >= 0) {
+      (*stbuf) = std::get<0>(retVal);
+      break;
+    }
   }
 
   return -err;
@@ -94,8 +98,8 @@ static int agfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		       off_t offset, struct fuse_file_info *fi)
 {
   agerr_t err = 0;
-  if (connections.size() > 0) {
-    std::pair<std::vector<std::string>, agerr_t> retVal{connections.front().readdir(path)};
+  for (size_t i = 0; i < connections.size(); i++) {
+    std::pair<std::vector<std::string>, agerr_t> retVal{connections[i].readdir(path)};
     std::vector<std::string> files = std::get<0>(retVal);
     err = std::get<1>(retVal);
 

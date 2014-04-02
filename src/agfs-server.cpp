@@ -147,7 +147,7 @@ void ClientConnection::processGetAttr() {
 	memset(&retValue, 0, sizeof(struct stat));
 	agerr_t error;
 	if ((error = lstat(file.c_str(), &retValue)) < 0) {
-		error = errno;
+		error = -errno;
 	}
 
 	agfs_write_error(fd_, error);
@@ -204,11 +204,11 @@ void ClientConnection::processReaddir() {
 
 	agerr_t error = 0;
 	if (!boost::filesystem::exists(file)) {
-		error = ENOENT;
+		error = -ENOENT;
 	}
 
 	if (!boost::filesystem::is_directory(file)) {
-		error = ENOTDIR;
+		error = -ENOTDIR;
 	}
 	agfs_write_error(fd_, -error);
 

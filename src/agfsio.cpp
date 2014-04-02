@@ -41,7 +41,7 @@ int agfs_write_string(int fd, const char* str)
 	}
 	total_written += err;
 
-	if ((err = write(fd, str, strlen(str))) < 0)
+	if ((err = write(fd, str, strlen(str) * sizeof(char))) < 0)
 	{
 		return err;
 	}
