@@ -90,6 +90,20 @@ bool ServerConnection::connected()
  * FUSE functions *
  ******************/
 
+/*
+ * Function stack objects with [] around them indicate tthat they are optional
+ * or not always present, based on preceding objects in the stack.
+ */
+
+/*
+ * Outgoing stack looks like:
+ * 
+ *      STRING
+ *
+ * Incoming stack looks like:
+ *
+ *      ERROR [STAT]
+ */
 std::pair<struct stat, agerr_t> ServerConnection::getattr(const char* path)
 {
 	//Write command and path
@@ -133,6 +147,15 @@ std::pair<struct statvfs, agerr_t> ServerConnection::statfs(const char* path)
 	return std::pair<struct statvfs, agerr_t>(readValues, errVal);
 }
 
+/*
+ * Outgoing stack looks like:
+ * 
+ *      STRING MASK
+ *
+ * Incoming stack looks like:
+ *
+ *      ERROR
+ */
 agerr_t ServerConnection::access(const char* path, int mask)
 {
 	//Write command and path
@@ -153,6 +176,15 @@ agerr_t ServerConnection::access(const char* path, int mask)
 	return retValue;
 }
 
+/*
+ * Outgoing stack looks like:
+ * 
+ *      STRING
+ *
+ * Incoming stack looks like:
+ *
+ *      ERROR [COUNT [STRING]*]
+ */
 std::pair<std::vector<std::string>, agerr_t> ServerConnection::readdir(const char* path)
 {
 	//Write command and path

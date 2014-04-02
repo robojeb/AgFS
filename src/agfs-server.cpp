@@ -134,7 +134,7 @@ void ClientConnection::processHeartbeat() {
  *
  * Outgoing stack looks like:
  *
- *      ERROR STAT
+ *      ERROR [STAT]
  */
 void ClientConnection::processGetAttr() {
 	std::string path;
@@ -151,7 +151,9 @@ void ClientConnection::processGetAttr() {
 	}
 
 	agfs_write_error(fd_, error);
-	agfs_write_stat(fd_, retValue);
+	if (error >= 0) {
+		agfs_write_stat(fd_, retValue);
+	}
 }
 
 /*
@@ -191,7 +193,7 @@ void ClientConnection::processAccess() {
  *
  * Outgoing stack looks like:
  *
- *      ERROR COUNT STRING [STRING]*
+ *      ERROR [COUNT [STRING]*]
  */
 void ClientConnection::processReaddir() {
 	std::string path;
@@ -212,18 +214,20 @@ void ClientConnection::processReaddir() {
 	}
 	agfs_write_error(fd_, error);
 
-	agsize_t count = 0;
-	boost::filesystem::directory_iterator end_itr{};
-	for (boost::filesystem::directory_iterator dir_itr(file);
-		dir_itr != end_itr; dir_itr++) {
-		count++;
-	}
-	count = htobe64(count);
-	write(fd_, &count, sizeof(agsize_t));
+	if (error >= 0) {
+		agsize_t count = 0;
+		boost::filesystem::directory_iterator end_itr{};
+		for (boost::filesystem::directory_iterator dir_itr(file);
+			dir_itr != end_itr; dir_itr++) {
+			count++;
+		}
+		count = htobe64(count);
+		write(fd_, &count, sizeof(agsize_t));
 
-	for (boost::filesystem::directory_iterator dir_itr(file);
-		dir_itr != end_itr; dir_itr++) {
-		agfs_write_string(fd_, dir_itr->path().filename().c_str());
+		for (boost::filesystem::directory_iterator dir_itr(file);
+			dir_itr != end_itr; dir_itr++) {
+			agfs_write_string(fd_, dir_itr->path().filename().c_str());
+		}
 	}
 }
 
