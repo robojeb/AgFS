@@ -94,6 +94,7 @@ void ClientConnection::processCommands() {
 		} else {
 			switch(cmd) {
 			case cmd::STOP:
+				std::cerr << "STOP called" << std::endl;
 				close(fd_);
 				fd_ = -1;
 				return;
@@ -101,10 +102,14 @@ void ClientConnection::processCommands() {
 				processHeartbeat();
 				break;
 			case cmd::GETATTR:
+				std::cerr << "GETATTR called" << std::endl;
 				processGetAttr();
 				break;
 			case cmd::READDIR:
 				processReaddir();
+				break;
+			case cmd::ACCESS:
+				processAccess();
 				break;
 			default:
 				std::cerr << "Unknown command" << std::endl;

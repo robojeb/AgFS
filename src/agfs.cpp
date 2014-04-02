@@ -84,6 +84,11 @@ static int agfs_readlink(const char *path, char *buf, size_t size)
   return 0;
 }
 
+static int agfs_opendir(const char* path, struct fuse_file_info *fi)
+{
+  // We might want to place a file handle in the fi struct for later use.
+  return 0;
+}
 
 static int agfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		       off_t offset, struct fuse_file_info *fi)
@@ -100,6 +105,12 @@ static int agfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
   }
 
   return -err;
+}
+
+static int agfs_releasedir(const char* path, struct fuse_file_info *fi)
+{
+  // We should probably remove the file handle and any associated data.
+  return 0;
 }
 
 static int agfs_mknod(const char *path, mode_t mode, dev_t rdev)
@@ -457,32 +468,34 @@ int main(int argc, char *argv[])
 
   memset(&agfs_oper, 0, sizeof(struct fuse_operations));
 
-  agfs_oper.getattr= agfs_getattr;
-  agfs_oper.access= agfs_access;
-  agfs_oper.readlink= agfs_readlink;
-  agfs_oper.readdir= agfs_readdir;
-  agfs_oper.mknod= agfs_mknod;
-  agfs_oper.mkdir= agfs_mkdir;
-  agfs_oper.symlink= agfs_symlink;
-  agfs_oper.unlink= agfs_unlink;
-  agfs_oper.rmdir= agfs_rmdir;
-  agfs_oper.rename= agfs_rename;
-  agfs_oper.link= agfs_link;
-  agfs_oper.chmod= agfs_chmod;
-  agfs_oper.chown= agfs_chown;
-  agfs_oper.truncate= agfs_truncate;
-  agfs_oper.utimens= agfs_utimens;
-  agfs_oper.open= agfs_open;
-  agfs_oper.read= agfs_read;
-  agfs_oper.write= agfs_write;
-  agfs_oper.statfs= agfs_statfs;
-  agfs_oper.release= agfs_release;
-  agfs_oper.fsync= agfs_fsync;
+  agfs_oper.getattr = agfs_getattr;
+  agfs_oper.access = agfs_access;
+  agfs_oper.readlink = agfs_readlink;
+  agfs_oper.opendir = agfs_opendir;
+  agfs_oper.readdir = agfs_readdir;
+  agfs_oper.releasedir = agfs_releasedir;
+  agfs_oper.mknod = agfs_mknod;
+  agfs_oper.mkdir = agfs_mkdir;
+  agfs_oper.symlink = agfs_symlink;
+  agfs_oper.unlink = agfs_unlink;
+  agfs_oper.rmdir = agfs_rmdir;
+  agfs_oper.rename = agfs_rename;
+  agfs_oper.link = agfs_link;
+  agfs_oper.chmod = agfs_chmod;
+  agfs_oper.chown = agfs_chown;
+  agfs_oper.truncate = agfs_truncate;
+  agfs_oper.utimens = agfs_utimens;
+  agfs_oper.open = agfs_open;
+  agfs_oper.read = agfs_read;
+  agfs_oper.write = agfs_write;
+  agfs_oper.statfs = agfs_statfs;
+  agfs_oper.release = agfs_release;
+  agfs_oper.fsync = agfs_fsync;
 #ifdef HAVE_SETXATTR
-  agfs_oper.setxattr= agfs_setxattr;
-  agfs_oper.getxattr= agfs_getxattr;
-  agfs_oper.listxattr= agfs_listxattr;
-  agfs_oper.removexattr= agfs_removexattr;
+  agfs_oper.setxattr = agfs_setxattr;
+  agfs_oper.getxattr = agfs_getxattr;
+  agfs_oper.listxattr = agfs_listxattr;
+  agfs_oper.removexattr = agfs_removexattr;
 #endif
 
   return fuse_main(argc, argv, &agfs_oper, NULL);
