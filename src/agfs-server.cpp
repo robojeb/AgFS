@@ -87,7 +87,7 @@ void ClientConnection::processCommands() {
 	//failure or explicit stop
 	agfs_write_cmd(fd_, cmd::ACCEPT);
 	while(1) {
-		cmd_t cmd;
+		cmd_t cmd = cmd::GETATTR;
 		int respVal = agfs_read_cmd(fd_, cmd);
 		if(respVal == -1) {
 			std::cout << "Missed heartbeat" << std::endl;
