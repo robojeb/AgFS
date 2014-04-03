@@ -25,13 +25,6 @@ public:
 	std::pair<struct stat, agerr_t> getattr(const char* path);
 
 	/**
-	 * \brief Execute stat on a specified path
-	 * \param path String containing the path to be looked up
-	 * \returns A pair containing the stat struct and any error generated.
-	 */
-	std::pair<struct statvfs, agerr_t> statfs(const char* path);
-
-	/**
 	 * \brief Execute access on a specified path
 	 * \param path String containing the path to be looked up
 	 * \returns The error code generated
@@ -46,6 +39,9 @@ public:
 	 */
 	std::pair<std::vector<std::string>, agerr_t> readdir(const char* path);
 
+	/// Stop the connection
+	agerr_t stop();
+	
 private:
 
 	int dnsLookup(const char* port);
