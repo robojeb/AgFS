@@ -12,7 +12,10 @@ typedef uint32_t agmode_t;
 typedef uint32_t agmask_t;
 typedef uint64_t agtime_t;
 
+// Key len in bytes (Will be encoded in hex)s
 constexpr int KEY_LEN = 256;
+
+
 constexpr size_t ASCII_KEY_LEN = 512;
 
 constexpr int CLIENT_BLOCK_SEC = 1;
@@ -21,6 +24,7 @@ constexpr int CLIENT_BLOCK_USEC = 0;
 constexpr int SERVER_BLOCK_SEC = 10;
 constexpr int SERVER_BLOCK_USEC = 0;
 
+// Default locations
 const std::string KEY_LIST_PATH = "/var/lib/agfs/authkeys";
 const std::string KEY_NAME_PATH = "/var/lib/agfs/";
 const std::string KEY_EXTENSION = ".agkey";

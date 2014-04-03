@@ -8,6 +8,13 @@
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
 
+/**
+ * This file is used to provide boost's io methods in a convenient class.
+ * AgFS.cpp (the core client file) will make extensive use of it as its method
+ * of communicating with a remote AgFSd (server) process.
+ */
+
+
 #include <cstdlib>
 #include <iostream>
 #include <boost/bind.hpp>

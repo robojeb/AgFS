@@ -4,6 +4,9 @@
 
 #include "constants.hpp"
 
+/**
+ * Attempt to 
+ */
 int agfs_write_cmd(int fd, cmd_t cmd);
 int agfs_read_cmd(int fd, cmd_t& cmd);
 

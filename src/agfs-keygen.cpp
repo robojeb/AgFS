@@ -11,7 +11,7 @@
 using namespace std;
 using namespace boost::filesystem;
 
-//Key len in bytes (Will be encoded in hex)s
+
 static const path DIR_PATH{KEY_NAME_PATH};
 
 static const char hexValues[16] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
@@ -38,7 +38,8 @@ int main(int argc, char** argv)
     usage();
     return 0;
   }
-  
+
+  // If the key dir doesn't already exist, we attempt to create it.
   if(!exists(DIR_PATH)) {
     if(!create_directory(DIR_PATH)) {
       cerr << "Could not create key directory" << endl;
@@ -97,6 +98,6 @@ int main(int argc, char** argv)
   keyListFile.close();
 
   cerr << "Successfuly created new key file" << endl;
- 
+
   return 0;
 }
