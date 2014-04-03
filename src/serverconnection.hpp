@@ -17,10 +17,11 @@ public:
 	std::string hostname();
 
 	std::pair<struct stat, agerr_t> getattr(const char* path);
-	std::pair<struct statvfs, agerr_t> statfs(const char* path);
-	agerr_t access(const char* path, int mask);
 	std::pair<std::vector<std::string>, agerr_t> readdir(const char* path);
+	agerr_t access(const char* path, int mask);
 
+	agerr_t stop();
+	
 private:
 
 	int dnsLookup(const char* port);

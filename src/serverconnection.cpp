@@ -19,6 +19,7 @@ ServerConnection::ServerConnection(std::string hostname, std::string port, std::
 	hostname_{hostname},
 	socket_{-1}
 {
+	//Perform DNS lookup and handle DNS errors.
 	socket_ = dnsLookup(port.c_str());
 
 	switch (socket_){
@@ -86,6 +87,17 @@ bool ServerConnection::connected()
 	return true;
 }
 
+agerr_t ServerConnection::stop()
+{
+	agerr_t error = 0;
+	if (connected()) {
+		agfs_write_cmd(socket_, cmd::STOP);
+		error = close(socket_);
+		socket_ = -1;
+	}
+	return error;
+}
+
 /******************
  * FUSE functions *
  ******************/
@@ -106,45 +118,23 @@ bool ServerConnection::connected()
  */
 std::pair<struct stat, agerr_t> ServerConnection::getattr(const char* path)
 {
-	//Write command and path
+	//Let server know we want file metadata
 	cmd_t cmd = cmd::GETATTR;
 	agfs_write_cmd(socket_, cmd);
 	
+	//Outgoing stack calls
 	agfs_write_string(socket_, path);
+
+	agerr_t error = 0;
+	agfs_read_error(socket_, error);
 
 	struct stat readValues;
 	memset(&readValues, 0, sizeof(struct stat));
-
-	agerr_t errVal = 0;
-	agfs_read_error(socket_, errVal);
-
-	if(errVal >= 0) {
+	if(error >= 0) {
 		agfs_read_stat(socket_, readValues);
 	}
 
-	return std::pair<struct stat, agerr_t>(readValues, errVal);
-}
-
-std::pair<struct statvfs, agerr_t> ServerConnection::statfs(const char* path)
-{
-	//Write command and path
-	cmd_t cmd = cmd::GETATTR;
-	agfs_write_cmd(socket_, cmd);
-	
-	agfs_write_string(socket_, path);
-	
-	struct statvfs readValues;
-	memset(&readValues, 0, sizeof(struct statvfs));
-	
-	agerr_t errVal;
-	read(socket_, &errVal, sizeof(agerr_t));
-	errVal = be64toh(errVal);
-	
-	if (errVal >= 0) {
-		read(socket_, &readValues, sizeof(struct statvfs));
-	}
-
-	return std::pair<struct statvfs, agerr_t>(readValues, errVal);
+	return std::pair<struct stat, agerr_t>(readValues, error);
 }
 
 /*
@@ -158,20 +148,18 @@ std::pair<struct statvfs, agerr_t> ServerConnection::statfs(const char* path)
  */
 agerr_t ServerConnection::access(const char* path, int mask)
 {
-	//Write command and path
+	//Let server know we want file access
 	cmd_t cmd = cmd::ACCESS;
 	agfs_write_cmd(socket_, cmd);
 
+	//Outgoing stack calls
 	agfs_write_string(socket_, path);
 
-	//Write the mask to the socket.
-	agmask_t mask64 = htobe64(mask);
-	write(socket_, &mask64, sizeof(agerr_t));
+	agfs_write_mask(socket_, (agmask_t)mask);
 	
+	//Incoming stack calls
 	agerr_t retValue;
-	memset(&retValue, 0, sizeof(agerr_t));
-	read(socket_, &retValue, sizeof(agerr_t));
-	retValue = be64toh(retValue);
+	agfs_read_error(socket_, retValue);
 
 	return retValue;
 }
@@ -187,15 +175,19 @@ agerr_t ServerConnection::access(const char* path, int mask)
  */
 std::pair<std::vector<std::string>, agerr_t> ServerConnection::readdir(const char* path)
 {
-	//Write command and path
+	//Let server know we want to read a directory. 
 	cmd_t cmd = cmd::READDIR;
 	agfs_write_cmd(socket_, cmd);
 
+	//Outgoing stack calls
 	agfs_write_string(socket_, path);
 	
+	//Incoming stack calls
 	agerr_t error = 0;
 	agfs_read_error(socket_, error);
 
+	//Since the server doesn't send data on errors, we need to
+	//short circuit.
 	std::vector<std::string> files;
 	if (error >= 0) {
 		agsize_t count = 0;
