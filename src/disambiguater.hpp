@@ -14,14 +14,15 @@ public:
 	//Returns EEXIST if the path/server combo is already in the map.
 	agerr_t addFilepath(std::string path, std::string server);
 
+	agerr_t addFilepaths(std::vector<std::string> paths, std::string server);
+
 	//Returns a vector of disambiguated filepaths
 	std::vector<std::string> disambiguatedFilepaths();
 
 	//Clears all file/server combos from the map.
 	void clearPaths();
 
-	//Ambiguates a file by returning the filepath and server name as
-	//separate strings.
+	//Ambiguates a file by returning the {server, filepath} pair
 	static std::pair<std::string, std::string> ambiguate(std::string path);
 	
 private:

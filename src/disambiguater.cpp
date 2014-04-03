@@ -12,25 +12,29 @@ Disambiguater::Disambiguater()
 }
 
 agerr_t Disambiguater::addFilepath(std::string path, std::string server)
-{
-	std::vector<std::string> servers;
-	
-	//Check if the map contains the path.
-	std::map<std::string, std::vector<std::string>>::iterator it = map_.find(path);
-	if (it == map_.end()) {
-		map_.insert(std::pair<std::string, std::vector<std::string>>{path, servers});
-	}
-	else {
-		servers = map_[path];
-		for (size_t i = 0; i < servers.size(); i++) {
-			if (servers[i] == server) {
-				return -EEXIST;
-			}
+{	
+	//We don't need to check if the map has the path in it, since
+	//the map will just create a new vector if it doesn't contain 
+	//the path.
+	for (size_t i = 0; i < map_[path].size(); i++) {
+		if (map_[path][i] == server) {
+			return -EEXIST;
 		}
 	}
 
-	servers.push_back(server);
+	map_[path].push_back(server);
 	return 0;
+}
+
+agerr_t Disambiguater::addFilepaths(std::vector<std::string> paths, std::string server)
+{
+	agerr_t error = 0;
+	for (size_t i = 0; i < paths.size(); i++) {
+      if ((error = addFilepath(paths[i], server)) < 0) {
+      	break;
+      }
+    }
+    return error;
 }
 
 std::vector<std::string> Disambiguater::disambiguatedFilepaths()
@@ -41,8 +45,13 @@ std::vector<std::string> Disambiguater::disambiguatedFilepaths()
 			it != map_.end(); ++it) {
 		std::string filepath{it->first};
 		std::vector<std::string> servers{it->second};
-		for (size_t i = 0; i < servers.size(); i++) {
-			filenames.push_back(filepath + BEGIN_BRACE + servers[i] + END_BRACE);
+
+		if (servers.size() == 1) {
+			filenames.push_back(filepath);
+		} else {
+			for (size_t i = 0; i < servers.size(); i++) {
+				filenames.push_back(filepath + BEGIN_BRACE + servers[i] + END_BRACE);
+			}
 		}
 	}
 
@@ -56,17 +65,24 @@ void Disambiguater::clearPaths()
 
 std::pair<std::string, std::string> Disambiguater::ambiguate(std::string path)
 {
-	size_t begin_position = path.rfind(BEGIN_BRACE);
-	size_t end_position = path.rfind(END_BRACE);
+	size_t begin_position = path.find(BEGIN_BRACE);
+	size_t end_position = path.find(END_BRACE);
+
+	std::string server, filepath;
 
 	if (begin_position == std::string::npos || end_position == std::string::npos) {
-		return std::pair<std::string, std::string>{path,""};
+		server = "";
+		filepath = path;
+	} else {
+		//Retrieve the server name
+		size_t serverLoc = begin_position + BEGIN_BRACE.size();
+		server = path.substr(serverLoc, end_position - serverLoc);
+
+		//Retrieve the path
+		filepath = path.substr(0, begin_position);
+		filepath += path.substr(end_position + END_BRACE.size());
 	}
 
-	std::string filepath = path.substr(0, begin_position);
-	size_t serverLoc = begin_position + BEGIN_BRACE.size();
-	std::string server = path.substr(serverLoc, end_position - serverLoc);
-
-	return std::pair<std::string, std::string>{filepath, server};
+	return std::pair<std::string, std::string>{server, filepath};
 }
 

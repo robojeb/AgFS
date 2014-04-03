@@ -40,49 +40,77 @@
 #include "serverconnection.hpp"
 #include "disambiguater.hpp"
 #include <sys/types.h>
-#include <vector>
+#include <map>
 
 /**************
  * GLOBALS *
  ***********/
 
-static std::vector<ServerConnection> connections;
+static std::map<std::string, ServerConnection> connections;
 
 static void agfs_destroy(void *data)
 {
   //Loop through server connections and send stop signal.
-  for (size_t i = 0; i < connections.size(); i++) {
-    connections[i].stop();
+  std::map<std::string, ServerConnection>::iterator it;
+  for (it = connections.begin(); it != connections.end(); ++it) {
+    it->second.stop();
   }
 }
 
 static int agfs_getattr(const char *path, struct stat *stbuf)
 {
-  //Linearly loop trough 
   memset(stbuf, 0, sizeof(struct stat));
-  agerr_t err = 0;
-  for (size_t i = 0; i < connections.size(); i++) {
-    std::pair<struct stat, agerr_t> retVal{connections[i].getattr(path)};
-    err = std::get<1>(retVal);
 
-    if (err >= 0) {
-      (*stbuf) = std::get<0>(retVal);
-      break;
+  //Initialize useful structures
+  std::pair<std::string, std::string> id{Disambiguater::ambiguate(path)};
+  std::string server{std::get<0>(id)}, file{std::get<1>(id)};
+  std::pair<struct stat, agerr_t> retVal;
+
+  //If the server is in our map, then only look at that server
+  std::map<std::string, ServerConnection>::iterator it = connections.find(server);
+  if (it != connections.end()) {
+    retVal = it->second.getattr(file.c_str());
+  } else {
+    //Otherwise, iterate through all connections to find the first such file.
+    for (it = connections.begin(); it != connections.end(); ++it) {
+      retVal = it->second.getattr(file.c_str());
+
+      if (std::get<1>(retVal) >= 0) {
+        break;
+      }
     }
   }
 
-  return -err;
+  int err = std::get<1>(retVal);
+  if (err >= 0) {
+    (*stbuf) = std::get<0>(retVal);
+  }
+
+  return err;
 }
 
 static int agfs_access(const char *path, int mask)
 {
-  int res;
+  agerr_t res = 0;
 
-  res = access(path, mask);
-  if (res == -1)
-    return -errno;
+  //Initialize useful structures
+  std::pair<std::string, std::string> id{Disambiguater::ambiguate(path)};
+  std::string server{id.first}, file{id.second};
 
-  return 0;
+  //Find the file
+  std::map<std::string, ServerConnection>::iterator it = connections.find(server);
+  if (it != connections.end()) {
+    res = it->second.access(file.c_str(), mask);
+  } else {
+    for (it = connections.begin(); it != connections.end(); ++it) {
+      res = it->second.access(file.c_str(), mask);
+      if (res >= 0) {
+        break;
+      }
+    }
+  }
+
+  return res;
 }
 
 static int agfs_readlink(const char *path, char *buf, size_t size)
@@ -106,18 +134,40 @@ static int agfs_opendir(const char* path, struct fuse_file_info *fi)
 static int agfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		       off_t offset, struct fuse_file_info *fi)
 {
-  agerr_t err = 0;
-  for (size_t i = 0; i < connections.size(); i++) {
-    std::pair<std::vector<std::string>, agerr_t> retVal{connections[i].readdir(path)};
-    std::vector<std::string> files = std::get<0>(retVal);
-    err = std::get<1>(retVal);
+  //We require two errors, one that is persistent, one that is temporary
+  agerr_t err = -ENOTDIR, temp;
 
-    for (size_t i = 0; i < files.size(); i++) {
-      filler(buf, files[i].c_str(), NULL, 0);
+  //Initialize useful structures
+  std::pair<std::string, std::string> id{Disambiguater::ambiguate(path)};
+  std::string server{id.first}, file{id.second};
+
+  Disambiguater disam{};
+
+  std::map<std::string, ServerConnection>::iterator it = connections.find(server);
+  if (it != connections.end()) {
+    std::pair<std::vector<std::string>, agerr_t> retVal{it->second.readdir(file.c_str())};
+    if ((temp = std::get<1>(retVal)) >= 0) {
+      disam.addFilepaths(std::get<0>(retVal), it->first);
+      err = temp;
+    }
+  } else {
+    for (it = connections.begin(); it != connections.end(); ++it) {
+      std::pair<std::vector<std::string>, agerr_t> retVal{it->second.readdir(file.c_str())};
+      if ((temp = std::get<1>(retVal)) >= 0) {
+        disam.addFilepaths(std::get<0>(retVal), it->first);
+        err = temp;
+      }
     }
   }
 
-  return -err;
+  //Fill the buffer with the filenames that were found.
+  std::vector<std::string> disambiguatedFilepaths{disam.disambiguatedFilepaths()};
+  for (size_t i = 0; i < disambiguatedFilepaths.size(); i++) {
+    filler(buf, disambiguatedFilepaths[i].c_str(), NULL, 0);
+  }
+  disam.clearPaths();
+
+  return err;
 }
 
 static int agfs_releasedir(const char* path, struct fuse_file_info *fi)
@@ -472,7 +522,8 @@ int main(int argc, char *argv[])
           keyfile >> hostname;
           keyfile >> port;
           keyfile >> key;
-          connections.push_back(ServerConnection(hostname, port, key));
+          ServerConnection connection{hostname, port, key};
+          connections.insert(std::pair<std::string, ServerConnection>{hostname, connection});
         }
         keyfile.close();
       }
