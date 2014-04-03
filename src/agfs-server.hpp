@@ -16,14 +16,10 @@ public:
 	 */
 	ClientConnection(int connFd);
 
-  /**
-	 * Check whether the connection is still active.
-	 */
+  	/// Check whether the connection is still alive.
 	bool connected();
 
-  /**
-	 * 
-	 */
+  	/// loop that processes all commands.
 	void processCommands();
 
 private:

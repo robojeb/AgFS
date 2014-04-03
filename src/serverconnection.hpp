@@ -6,6 +6,7 @@
 #include "constants.hpp"
 #include <vector>
 
+/// Provides the client with an interface over which to talk with the server.
 class ServerConnection {
 public:
 	ServerConnection(std::string hostname, std::string port, std::string key);

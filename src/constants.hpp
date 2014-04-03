@@ -1,12 +1,26 @@
+/**
+ * @file constants.hpp
+ */ 
+
+
 #ifndef CONSTANTS_HPP_INC
 #define CONSTANTS_HPP_INC
 
 #include <cstdint>
 #include <string>
 
+/**
+ * Commands issued by AgFS
+ */ 
 typedef uint16_t cmd_t;
+
 typedef uint64_t agsize_t;
+
+/**
+ * Error codes returned by AgFS
+ */
 typedef int64_t agerr_t;
+
 typedef uint64_t agdev_t;
 typedef uint32_t agmode_t;
 typedef uint32_t agmask_t;
