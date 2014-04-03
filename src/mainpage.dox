@@ -1,0 +1,57 @@
+/**
+ * \mainpage AgFS: The aggregating filesystem
+ * 
+ * 
+ * \tableofcontents
+ * 
+ * \section intro_sec Introduction 
+ * 
+ * Filesystems like Samba provide a useful function, namely allowing servers
+ * to offer a filesystem, and clients to choose which servers to which they 
+ * wish to connect. However, if a client mounts many Samba shares, they are 
+ * necessarily spread throughout separate directories. They cannot be mounted
+ * on top of each other to provide a unified directory structure that can be
+ * dynamically added to or removed from by mounting or unmounting shares.
+ * 
+ * 
+ *
+ *
+ * \section purp_sec Purpose of AgFS
+ * 
+ * AgFS, or SilverFS, attempts to fill this gap. A user may connect to as many
+ * or as few servers as they desire, placing the mounts on top of each other 
+ * so that a large set of servers appear to provide a single set of files. 
+ *
+ *
+ *
+ * \section use_sec Usage
+ *
+ * To launch the server, 
+ *
+ * To mount a share as a client, 
+ *
+ * \section sec_sec Security
+ * Because AgFS was designed with server-operators in mind just as much as 
+ * client machine-users, a user may only connect to a share for which they have
+ * a valid key provided by the server operator. Key-checking will eventually
+ * be carried out over SSL connections. A server will use a configuration file
+ * similar to SSH's authorized_keys file to specify which keys are trusted, 
+ * which shares they have access to, and what permissions they have on each
+ * share. 
+ *
+ * 
+ *
+ * \section clims_sec Current Limitations 
+ * 
+ *
+ * At this stage in implementation, we do not use SSL connections. All 
+ * connections, including key checking, are carried out in the clear. 
+ *
+ *
+ *
+ *
+ * \section dlims_sec Design Limitations 
+ *
+ * 
+ * By design, AgFS cannot
+ */
