@@ -19,7 +19,7 @@ agfs-keygen: agfs-keygen.o
 agfsd: agfsd.o agfs-server.o agfsio.o
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
-agfs: agfs.o serverconnection.o agfsio.o
+agfs: agfs.o serverconnection.o agfsio.o disambiguater.o
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
 
 # Make rule to clean compiled binaries
@@ -30,10 +30,11 @@ clean:
 # Auto generated using clang++ -MM *.cpp -D_FILE_OFFSET_BITS=64 -std=c++11
 
 agfs-client.o: agfs-client.cpp
-agfs.o: agfs.cpp serverconnection.hpp constants.hpp
+agfs.o: agfs.cpp serverconnection.hpp constants.hpp disambiguater.hpp
 agfsd.o: agfsd.cpp constants.hpp agfs-server.hpp
 agfsio.o: agfsio.cpp
 agfs-keygen.o: agfs-keygen.cpp constants.hpp
 agfs-server.o: agfs-server.cpp agfs-server.hpp constants.hpp agfsio.hpp
+disambiguater.o: disambiguater.cpp disambiguater.hpp constants.hpp
 serverconnection.o: serverconnection.cpp serverconnection.hpp \
   constants.hpp agfsio.hpp
