@@ -47,9 +47,17 @@
 
 static std::vector<ServerConnection> connections;
 
+static void agfs_destroy(void *data)
+{
+  //Loop through server connections and send stop signal.
+  for (size_t i = 0; i < connections.size(); i++) {
+    connections[i].stop();
+  }
+}
 
 static int agfs_getattr(const char *path, struct stat *stbuf)
 {
+  //Linearly loop trough 
   memset(stbuf, 0, sizeof(struct stat));
   agerr_t err = 0;
   for (size_t i = 0; i < connections.size(); i++) {
@@ -472,6 +480,7 @@ int main(int argc, char *argv[])
 
   memset(&agfs_oper, 0, sizeof(struct fuse_operations));
 
+  agfs_oper.destroy = agfs_destroy;
   agfs_oper.getattr = agfs_getattr;
   agfs_oper.access = agfs_access;
   agfs_oper.readlink = agfs_readlink;
