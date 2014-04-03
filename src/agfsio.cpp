@@ -18,6 +18,19 @@ int agfs_read_cmd(int fd, cmd_t& cmd)
 	return err;
 }
 
+int agfs_write_mask(int fd, agmask_t mask)
+{
+	mask = htobe32(mask);
+	return write(fd, &mask, sizeof(agmask_t));
+}
+
+int agfs_read_mask(int fd, agmask_t& mask)
+{
+	int err = read(fd, &mask, sizeof(agmask_t));
+	mask = be32toh(mask);
+	return err;
+}
+
 int agfs_write_error(int fd, agerr_t err)
 {
 	err = htobe64(err);
