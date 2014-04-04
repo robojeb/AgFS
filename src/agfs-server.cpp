@@ -235,7 +235,8 @@ void ClientConnection::processReaddir() {
 			filepath = (char*)dir_itr->path().filename().c_str();
 			agfs_write_string(fd_, filepath);
 
-			stat(filepath, &stbuf);
+			memset(&stbuf, 0, sizeof(struct stat));
+			lstat(filepath, &stbuf);
 			agfs_write_stat(fd_, stbuf);
 		}
 	}

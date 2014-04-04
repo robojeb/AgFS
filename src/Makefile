@@ -2,7 +2,7 @@
 # Make file for AgFS programs
 #
 
-OPTFLAGS = -O2
+OPTFLAGS = 
 CXX = clang++
 CXXFLAGS = -Wall -Wextra -pedantic -g -std=c++11 $(OPTFLAGS) -D_FILE_OFFSET_BITS=64
 
