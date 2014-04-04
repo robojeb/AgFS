@@ -130,6 +130,7 @@ std::vector<std::pair<std::string, struct stat>> Disambiguater::disambiguatedFil
 void Disambiguater::clearPaths()
 {
 	filemap_.clear();
+	directorymap_.clear();
 }
 
 std::pair<std::string, std::string> Disambiguater::ambiguate(std::string path)
