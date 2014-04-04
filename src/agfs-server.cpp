@@ -228,7 +228,6 @@ void ClientConnection::processReaddir() {
 
 		//Write the filenames and associated stat's to the pipe.
 		struct stat stbuf;
-		char* filepath;
 		for (boost::filesystem::directory_iterator dir_itr(file);
 			dir_itr != end_itr; dir_itr++) {
 			
