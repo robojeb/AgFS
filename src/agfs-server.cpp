@@ -232,11 +232,12 @@ void ClientConnection::processReaddir() {
 		for (boost::filesystem::directory_iterator dir_itr(file);
 			dir_itr != end_itr; dir_itr++) {
 			
-			filepath = (char*)dir_itr->path().filename().c_str();
-			agfs_write_string(fd_, filepath);
+			//Write the relative name here
+			agfs_write_string(fd_, dir_itr->path().filename().c_str());
 
+			//We need to stat the absolute name here
 			memset(&stbuf, 0, sizeof(struct stat));
-			lstat(filepath, &stbuf);
+			lstat(dir_itr->path().c_str(), &stbuf);
 			agfs_write_stat(fd_, stbuf);
 		}
 	}
