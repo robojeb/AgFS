@@ -145,14 +145,14 @@ static int agfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
   std::map<std::string, ServerConnection>::iterator it = connections.find(server);
   if (it != connections.end()) {
-    std::pair<std::vector<std::string>, agerr_t> retVal{it->second.readdir(file.c_str())};
+    std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t> retVal{it->second.readdir(file.c_str())};
     if ((temp = std::get<1>(retVal)) >= 0) {
       disam.addFilepaths(std::get<0>(retVal), it->first);
       err = temp;
     }
   } else {
     for (it = connections.begin(); it != connections.end(); ++it) {
-      std::pair<std::vector<std::string>, agerr_t> retVal{it->second.readdir(file.c_str())};
+      std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t> retVal{it->second.readdir(file.c_str())};
       if ((temp = std::get<1>(retVal)) >= 0) {
         disam.addFilepaths(std::get<0>(retVal), it->first);
         err = temp;

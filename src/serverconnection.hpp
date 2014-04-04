@@ -37,7 +37,7 @@ public:
 	 * \returns a pair of a vector containing the children files/directories, 
 	  *         and any error generated.
 	 */
-	std::pair<std::vector<std::string>, agerr_t> readdir(const char* path);
+	std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t> readdir(const char* path);
 
 	/// Stop the connection
 	agerr_t stop();

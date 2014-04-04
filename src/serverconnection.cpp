@@ -171,9 +171,9 @@ agerr_t ServerConnection::access(const char* path, int mask)
  *
  * Incoming stack looks like:
  *
- *      ERROR [COUNT [STRING]*]
+ *      ERROR [COUNT [STRING STAT]*]
  */
-std::pair<std::vector<std::string>, agerr_t> ServerConnection::readdir(const char* path)
+std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t> ServerConnection::readdir(const char* path)
 {
 	//Let server know we want to read a directory. 
 	cmd_t cmd = cmd::READDIR;
@@ -188,7 +188,7 @@ std::pair<std::vector<std::string>, agerr_t> ServerConnection::readdir(const cha
 
 	//Since the server doesn't send data on errors, we need to
 	//short circuit.
-	std::vector<std::string> files;
+	std::vector<std::pair<std::string, struct stat>> files;
 	if (error >= 0) {
 		agsize_t count = 0;
 		read(socket_, &count, sizeof(agsize_t));
@@ -197,11 +197,15 @@ std::pair<std::vector<std::string>, agerr_t> ServerConnection::readdir(const cha
 		while (count-- > 0) {
 			std::string file;
 			agfs_read_string(socket_, file);
-			files.push_back(file);
+
+			struct stat stbuf;
+			agfs_read_stat(socket_, stbuf);
+
+			files.push_back(std::pair<std::string, struct stat>{file, stbuf});
 		}
 	}
 
-	return std::pair<std::vector<std::string>, agerr_t>{files, error};
+	return std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t>{files, error};
 }
 
 /*********************

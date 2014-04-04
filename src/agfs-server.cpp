@@ -193,7 +193,7 @@ void ClientConnection::processAccess() {
  *
  * Outgoing stack looks like:
  *
- *      ERROR [COUNT [STRING]*]
+ *      ERROR [COUNT [STRING STAT]*]
  */
 void ClientConnection::processReaddir() {
 	std::string path;
@@ -214,7 +214,9 @@ void ClientConnection::processReaddir() {
 	}
 	agfs_write_error(fd_, error);
 
+	//Short circuit if we have an error.
 	if (error >= 0) {
+		//Write the number of entries in the directory to the pipe.
 		agsize_t count = 0;
 		boost::filesystem::directory_iterator end_itr{};
 		for (boost::filesystem::directory_iterator dir_itr(file);
@@ -224,9 +226,17 @@ void ClientConnection::processReaddir() {
 		count = htobe64(count);
 		write(fd_, &count, sizeof(agsize_t));
 
+		//Write the filenames and associated stat's to the pipe.
+		struct stat stbuf;
+		char* filepath;
 		for (boost::filesystem::directory_iterator dir_itr(file);
 			dir_itr != end_itr; dir_itr++) {
-			agfs_write_string(fd_, dir_itr->path().filename().c_str());
+			
+			filepath = (char*)dir_itr->path().filename().c_str();
+			agfs_write_string(fd_, filepath);
+
+			stat(filepath, &stbuf);
+			agfs_write_stat(fd_, stbuf);
 		}
 	}
 }
