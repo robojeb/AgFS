@@ -115,6 +115,10 @@ void ClientConnection::processCommands() {
 				std::cerr << "ACCESS called" << std::endl;
 				processAccess();
 				break;
+			case cmd::READ:
+				std::cerr << "READ called" << std::endl;
+				processRead();
+				break;
 			default:
 				std::cerr << "Unknown command" << std::endl;
 			}
