@@ -50,6 +50,7 @@ static std::map<std::string, ServerConnection> connections;
 
 static void agfs_destroy(void *data)
 {
+  (void)data;
   //Loop through server connections and send stop signal.
   std::map<std::string, ServerConnection>::iterator it;
   for (it = connections.begin(); it != connections.end(); ++it) {
@@ -128,12 +129,18 @@ static int agfs_readlink(const char *path, char *buf, size_t size)
 static int agfs_opendir(const char* path, struct fuse_file_info *fi)
 {
   // We might want to place a file handle in the fi struct for later use.
+  (void)path;
+  (void)fi;
+  std::cerr << "OpenDir unimplemented" << std::endl;
   return 0;
 }
 
 static int agfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		       off_t offset, struct fuse_file_info *fi)
 {
+  (void) fi;
+  (void) offset;
+
   //We require two errors, one that is persistent, one that is temporary
   agerr_t err = -ENOTDIR, temp;
 
@@ -172,6 +179,9 @@ static int agfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
 static int agfs_releasedir(const char* path, struct fuse_file_info *fi)
 {
+  (void) path;
+  (void) fi;
+  std::cerr << "ReleaseDir unimplemented" << std::endl;
   // We should probably remove the file handle and any associated data.
   return 0;
 }
@@ -314,33 +324,32 @@ static int agfs_utimens(const char *path, const struct timespec ts[2])
 
 static int agfs_open(const char *path, struct fuse_file_info *fi)
 {
-  int res;
-
-  res = open(path, fi->flags);
-  if (res == -1)
-    return -errno;
-
-  close(res);
+  (void) path;
+  (void) fi;
+  std::cerr << "Open not implemented" << std::endl;
   return 0;
 }
 
 static int agfs_read(const char *path, char *buf, size_t size, off_t offset,
 		    struct fuse_file_info *fi)
 {
-  int fd;
-  int res;
+  std::pair<std::string, std::string> id{Disambiguater::ambiguate(path)};
+  std::string server{id.first}, file{id.second};
 
-  (void) fi;
-  fd = open(path, O_RDONLY);
-  if (fd == -1)
-    return -errno;
+  std::map<std::string, ServerConnection>::iterator it;
+  std::pair<std::vector<unsigned char>, agerr_t> retVal;
+  retVal.second = -ENOENT;
+  for (it = connections.begin(); it != connections.end(); ++it) {
+    retVal = it->second.readFile(file.c_str(), size, offset);
+    if (retVal.second >= 0) {
+      memcpy(buf, &retVal.first[0], retVal.first.size());
+      break;
+    }
+  }
 
-  res = pread(fd, buf, size, offset);
-  if (res == -1)
-    res = -errno;
+  (void)fi;
 
-  close(fd);
-  return res;
+  return retVal.second;
 }
 
 static int agfs_write(const char *path, const char *buf, size_t size,
