@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 #include <arpa/inet.h>
 #include <errno.h>
+#include <fcntl.h>
 #include "agfs-server.hpp"
 #include "constants.hpp"
 #include "agfsio.hpp"
@@ -126,7 +127,6 @@ void ClientConnection::processHeartbeat() {
 	agfs_write_cmd(fd_, cmd::HEARTBEAT);
 }
 
-
 /*
  * Incoming stack looks like:
  * 
@@ -185,7 +185,6 @@ void ClientConnection::processAccess() {
 	agfs_write_error(fd_, result);
 }
 
-
 /*
  * Incoming stack looks like:
  * 
@@ -193,7 +192,7 @@ void ClientConnection::processAccess() {
  *
  * Outgoing stack looks like:
  *
- *      ERROR [COUNT [STRING STAT]*]
+ *      ERROR [SIZE [STRING STAT]*]
  */
 void ClientConnection::processReaddir() {
 	std::string path;
@@ -240,5 +239,71 @@ void ClientConnection::processReaddir() {
 			agfs_write_stat(fd_, stbuf);
 		}
 	}
+}
+
+/*
+ * Incoming stack looks like:
+ * 
+ *      STRING SIZE OFFSET
+ *
+ * Outgoing stack looks like:
+ *
+ *      ERROR [SIZE [DATA]*]
+ */
+void ClientConnection::processRead()
+{
+	std::string path;
+	agfs_read_string(fd_, path);
+
+	//Cosntruct the filepath
+	boost::filesystem::path fusePath{path};
+	boost::filesystem::path file{mountPoint_};
+	file /= fusePath;
+
+	agsize_t size = 0;
+	agfs_read_size(fd_, size);
+
+	agsize_t offset = 0;
+	agfs_read_size(fd_, offset);
+
+	//Process the request
+	agerr_t error = 0;
+
+	int fd;
+	if ((fd = open(file.c_str(), O_RDONLY)) < 0)
+	{
+		error = -errno;
+		agfs_write_error(fd_, error);
+		return;
+	}
+
+	lseek(fd, offset, SEEK_SET);
+
+	//Read the file data into the buffer until we have either hit an error,
+	//or we have satisfied the read request.
+	agsize_t total_read = 0;
+	std::vector<unsigned char> buf;
+	buf.resize(size);
+	while (total_read != size && 
+			(error = read(fd, &buf[0] + total_read, size - total_read)) > 0) {
+		total_read += error;
+	}
+	error = error > 0 ? 0 : error;
+	agfs_write_error(fd_, error);
+
+	if (error >= 0) {
+		agfs_write_size(fd_, total_read);
+		write(fd_, &buf[0], total_read);
+	}
+}
+
+void ClientConnection::processOpen()
+{
+
+}
+
+void ClientConnection::processRelease()
+{
+
 }
 
