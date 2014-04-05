@@ -39,7 +39,20 @@ public:
 	 */
 	std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t> readdir(const char* path);
 
-	/// Stop the connection
+	/**
+	 * \brief Execute read on a specified path
+	 * \param path String containing the path to be looked up
+	 * \param size The number of bytes to read from the file.
+	 * \param offset The offset to start reading from.
+	 * \returns a pair of a vector containing the children files/directories, 
+	  *         and any error generated.
+	 */
+	std::pair<std::vector<unsigned char>, agerr_t> readFile(const char* path, agsize_t size, agsize_t offset);
+
+	/**
+	 * \brief Halt communication with the server
+	 * \returns an error indicating the success of the connection halt.
+	 */
 	agerr_t stop();
 	
 private:
