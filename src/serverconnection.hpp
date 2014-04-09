@@ -5,6 +5,7 @@
 #include <string>
 #include "constants.hpp"
 #include <vector>
+#include <mutex>
 
 /// Provides the client with an interface over which to talk with the server.
 class ServerConnection {
@@ -51,6 +52,9 @@ private:
 
 	//The hostname
 	std::string hostname_;
+
+	//A mutex to turn this object into a monitor
+	std::mutex monitor_;
 
 	//Socket descriptor
 	int socket_;

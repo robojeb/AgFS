@@ -89,6 +89,7 @@ bool ServerConnection::connected()
 
 agerr_t ServerConnection::stop()
 {
+	std::lock_guard<std::mutex> l{monitor_};
 	agerr_t error = 0;
 	if (connected()) {
 		agfs_write_cmd(socket_, cmd::STOP);
@@ -118,6 +119,7 @@ agerr_t ServerConnection::stop()
  */
 std::pair<struct stat, agerr_t> ServerConnection::getattr(const char* path)
 {
+	std::lock_guard<std::mutex> l{monitor_};
 	//Let server know we want file metadata
 	cmd_t cmd = cmd::GETATTR;
 	agfs_write_cmd(socket_, cmd);
@@ -148,6 +150,7 @@ std::pair<struct stat, agerr_t> ServerConnection::getattr(const char* path)
  */
 agerr_t ServerConnection::access(const char* path, int mask)
 {
+	std::lock_guard<std::mutex> l{monitor_};
 	//Let server know we want file access
 	cmd_t cmd = cmd::ACCESS;
 	agfs_write_cmd(socket_, cmd);
@@ -175,6 +178,7 @@ agerr_t ServerConnection::access(const char* path, int mask)
  */
 std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t> ServerConnection::readdir(const char* path)
 {
+	std::lock_guard<std::mutex> l{monitor_};
 	//Let server know we want to read a directory. 
 	cmd_t cmd = cmd::READDIR;
 	agfs_write_cmd(socket_, cmd);
