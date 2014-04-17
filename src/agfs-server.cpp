@@ -294,9 +294,11 @@ void ClientConnection::processRead()
 	}
 	error = error > 0 ? 0 : error;
 	agfs_write_error(fd_, error);
+	std::cerr << "error: " << error << std::endl;
 
 	if (error >= 0) {
 		agfs_write_size(fd_, total_read);
+		std::cerr << "read size: " << total_read << std::endl;
 		write(fd_, &buf[0], total_read);
 	}
 }

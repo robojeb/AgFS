@@ -233,6 +233,7 @@ std::pair<std::vector<unsigned char>, agerr_t> ServerConnection::readFile(const 
 	if (error >= 0) {
 		agsize_t amount_read = 0;
 		agfs_read_size(socket_, amount_read);
+		std::cerr << "size: " << amount_read << std::endl;
 
 		data.resize(amount_read);
 		read(socket_, &data[0], amount_read);
