@@ -79,6 +79,14 @@ ServerConnection::ServerConnection(std::string hostname, std::string port, std::
 	}
 };
 
+ServerConnection::ServerConnection(ServerConnection const& connection) :
+	beatsMissed_{connection.beatsMissed_},
+	hostname_{connection.hostname_},
+	socket_{connection.socket_}
+{
+	//Copy constructor!
+}
+
 bool ServerConnection::connected()
 {
 	if (socket_ < 0) {

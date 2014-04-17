@@ -542,7 +542,7 @@ int main(int argc, char *argv[])
           keyfile >> port;
           keyfile >> key;
           ServerConnection connection{hostname, port, key};
-          connections.insert(std::pair<std::string, ServerConnection>{hostname, connection});
+          connections.insert(std::make_pair(hostname, connection));
         }
         keyfile.close();
       }
