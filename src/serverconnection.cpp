@@ -236,7 +236,7 @@ std::pair<std::vector<unsigned char>, agerr_t> ServerConnection::readFile(const 
 		std::cerr << "size: " << amount_read << std::endl;
 
 		data.resize(amount_read);
-		error = std::min(read(socket_, &data[0], amount_read), error);
+		error = std::min((long long)read(socket_, &data[0], amount_read), (long long)error);
 	}
 
 	return std::pair<std::vector<unsigned char>, agerr_t>{data, error};
