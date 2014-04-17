@@ -339,11 +339,19 @@ static int agfs_read(const char *path, char *buf, size_t size, off_t offset,
   std::map<std::string, ServerConnection>::iterator it;
   std::pair<std::vector<unsigned char>, agerr_t> retVal;
   retVal.second = -ENOENT;
-  for (it = connections.begin(); it != connections.end(); ++it) {
+  it = connections.find(server);
+  if (it != connections.end()) {
     retVal = it->second.readFile(file.c_str(), size, offset);
     if (retVal.second >= 0) {
       memcpy(buf, &retVal.first[0], retVal.first.size());
-      break;
+    }
+  } else {
+    for (it = connections.begin(); it != connections.end(); ++it) {
+      retVal = it->second.readFile(file.c_str(), size, offset);
+      if (retVal.second >= 0) {
+        memcpy(buf, &retVal.first[0], retVal.first.size());
+        break;
+      }
     }
   }
 

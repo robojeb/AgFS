@@ -292,13 +292,13 @@ void ClientConnection::processRead()
 			(error = read(fd, &buf[0] + total_read, size - total_read)) > 0) {
 		total_read += error;
 	}
-	error = error > 0 ? 0 : error;
+	//Write the total number of bytes sent to the error value,
+	//unless there was a legitimate error.
+	error = error > 0 ? total_read : error;
 	agfs_write_error(fd_, error);
-	std::cerr << "error: " << error << std::endl;
 
 	if (error >= 0) {
 		agfs_write_size(fd_, total_read);
-		std::cerr << "read size: " << total_read << std::endl;
 		write(fd_, &buf[0], total_read);
 	}
 }
