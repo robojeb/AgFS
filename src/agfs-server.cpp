@@ -180,7 +180,7 @@ void ClientConnection::processAccess() {
 
 	//Grab the access mask.
 	agmask_t mask;
-	read(fd_, &mask, sizeof(agmask_t));
+	agfs_read_mask(fd_, mask);
 
 	//Attempt to access the file.
 	agerr_t result = access(file.c_str(), mask);
@@ -226,8 +226,7 @@ void ClientConnection::processReaddir() {
 			dir_itr != end_itr; dir_itr++) {
 			count++;
 		}
-		count = htobe64(count);
-		write(fd_, &count, sizeof(agsize_t));
+		agfs_write_size(fd_, count);
 
 		//Write the filenames and associated stat's to the pipe.
 		struct stat stbuf;

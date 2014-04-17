@@ -64,11 +64,12 @@ static int agfs_getattr(const char *path, struct stat *stbuf)
 
   //Initialize useful structures
   std::pair<std::string, std::string> id{Disambiguater::ambiguate(path)};
-  std::string server{std::get<0>(id)}, file{std::get<1>(id)};
+  std::string server{id.first}, file{id.second};
   std::pair<struct stat, agerr_t> retVal;
 
   //If the server is in our map, then only look at that server
-  std::map<std::string, ServerConnection>::iterator it = connections.find(server);
+  std::map<std::string, ServerConnection>::iterator it;
+  it = connections.find(server);
   if (it != connections.end()) {
     retVal = it->second.getattr(file.c_str());
   } else {
@@ -76,18 +77,18 @@ static int agfs_getattr(const char *path, struct stat *stbuf)
     for (it = connections.begin(); it != connections.end(); ++it) {
       retVal = it->second.getattr(file.c_str());
 
-      if (std::get<1>(retVal) >= 0) {
+      if (retVal.second >= 0) {
         break;
       }
     }
   }
 
-  int err = std::get<1>(retVal);
-  if (err >= 0) {
-    (*stbuf) = std::get<0>(retVal);
+  agerr_t error = retVal.second;
+  if (error >= 0) {
+    (*stbuf) = retVal.first;
   }
 
-  return err;
+  return error;
 }
 
 static int agfs_access(const char *path, int mask)
@@ -99,7 +100,8 @@ static int agfs_access(const char *path, int mask)
   std::string server{id.first}, file{id.second};
 
   //Find the file
-  std::map<std::string, ServerConnection>::iterator it = connections.find(server);
+  std::map<std::string, ServerConnection>::iterator it;
+  it = connections.find(server);
   if (it != connections.end()) {
     res = it->second.access(file.c_str(), mask);
   } else {
