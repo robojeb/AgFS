@@ -74,6 +74,9 @@ namespace cmd {
 
 	/// Command to execute a READDIR
 	constexpr cmd_t READDIR = 8;
+
+	/// Command to execute a READ
+	constexpr cmd_t READ = 9;
 }
 
 #endif

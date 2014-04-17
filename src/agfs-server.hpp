@@ -27,6 +27,9 @@ private:
 	void processAccess();
 	void processHeartbeat();
 	void processReaddir();
+	void processRead();
+	void processOpen();
+	void processRelease();
 
 	boost::filesystem::path mountPoint_;
 	int fd_;
