@@ -29,10 +29,37 @@ int agfs_write_cmd(int fd, cmd_t cmd);
 */
 int agfs_read_cmd(int fd, cmd_t& cmd);
 
-
+/**
+ * \brief Write a mask on the connection.
+ * \details Handles endianness and writes a mask to a provided connection.
+ * \param fd The file descriptor of the connection to write on
+ * \param mask The mask to write
+ */
 int agfs_write_mask(int fd, agmask_t mask);
+
+/**
+* \brief Read a mask on the connection.
+* \details Handles endianness and read a mask from a provided connection.
+* \param fd The file descriptor of the connection to read on
+* \param mask The mask buffer to read into.
+*/
 int agfs_read_mask(int fd, agmask_t& mask);
 
+/**
+ * \brief Write a size to the connection.
+ * \details Handles endianness and writes a size to a provided connection.
+ * \param fd The file descriptor of the connection to write on
+ * \param size The size to write
+ */
+int agfs_write_size(int fd, agsize_t size);
+
+/**
+* \brief Read a size from the connection.
+* \details Handles endianness and read a size from a provided connection.
+* \param fd The file descriptor of the connection to read on
+* \param size The size buffer to read into.
+*/
+int agfs_read_size(int fd, agsize_t& size);
 
 /**
 * \brief Write an error on the connection.

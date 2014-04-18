@@ -33,6 +33,19 @@ int agfs_read_mask(int fd, agmask_t& mask)
 	return err;
 }
 
+int agfs_write_size(int fd, agsize_t size)
+{
+	size = htobe64(size);
+	return write(fd, &size, sizeof(agsize_t));
+}
+
+int agfs_read_size(int fd, agsize_t& size)
+{
+	int error = read(fd, &size, sizeof(agsize_t));
+	size = be64toh(size);
+	return error;
+}
+
 int agfs_write_error(int fd, agerr_t err)
 {
 	err = htobe64(err);
@@ -49,9 +62,7 @@ int agfs_read_error(int fd, agerr_t& err)
 int agfs_write_string(int fd, const char* str)
 {
 	int total_written = 0, err;
-	agsize_t pathLen = strlen(str);
-	pathLen = htobe64(pathLen);
-	if ((err = write(fd, &pathLen, sizeof(agsize_t))) < 0)
+	if ((err = agfs_write_size(fd, strlen(str))) < 0)
 	{
 		return err;
 	}
@@ -70,12 +81,11 @@ int agfs_read_string(int fd, std::string& str)
 {
 	int total_read = 0, err;
 	agsize_t pathLen = 0;
-	if ((err = read(fd, &pathLen, sizeof(agsize_t))) < 0)
+	if ((err = agfs_read_size(fd, pathLen)) < 0)
 	{
 		return err;
 	}
 	total_read += err;
-	pathLen = be64toh(pathLen);
 
 	char* string = (char*)malloc(sizeof(char) * (pathLen + 1));
 	err = read(fd, string, pathLen);
@@ -111,8 +121,7 @@ int agfs_write_stat(int fd, struct stat& buf)
 	total_written += temp;
 
 	agsize_t size = buf.st_size;
-	size = htobe64(size);
-	if ((temp = write(fd, &size, sizeof(agsize_t))) < 0) {
+	if ((temp = agfs_write_size(fd, size)) < 0) {
 		return temp;
 	}
 	total_written += temp;
@@ -160,11 +169,10 @@ int agfs_read_stat(int fd, struct stat& buf)
 	mode = be32toh(mode);
 	total_read += temp;
 
-	agsize_t size;
-	if ((temp = read(fd, &size, sizeof(agsize_t))) < 0) {
+	agsize_t size = 0;
+	if ((temp = agfs_read_size(fd, size)) < 0) {
 		return temp;
 	}
-	size = be64toh(size);
 	total_read += temp;
 
 	agtime_t atime = 0;

@@ -79,6 +79,14 @@ ServerConnection::ServerConnection(std::string hostname, std::string port, std::
 	}
 };
 
+ServerConnection::ServerConnection(ServerConnection const& connection) :
+	beatsMissed_{connection.beatsMissed_},
+	hostname_{connection.hostname_},
+	socket_{connection.socket_}
+{
+	//Copy constructor!
+}
+
 bool ServerConnection::connected()
 {
 	if (socket_ < 0) {
@@ -195,8 +203,7 @@ std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t> ServerConne
 	std::vector<std::pair<std::string, struct stat>> files;
 	if (error >= 0) {
 		agsize_t count = 0;
-		read(socket_, &count, sizeof(agsize_t));
-		count = be64toh(count);
+		agfs_read_size(socket_, count);
 
 		while (count-- > 0) {
 			std::string file;
@@ -210,6 +217,41 @@ std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t> ServerConne
 	}
 
 	return std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t>{files, error};
+}
+
+/*
+ * Outgoing stack looks like:
+ * 
+ *      STRING SIZE OFFSET
+ *
+ * Incoming stack looks like:
+ *
+ *      ERROR [SIZE [DATA]*]
+ */
+std::pair<std::vector<unsigned char>, agerr_t> ServerConnection::readFile(const char* path, agsize_t size, agsize_t offset)
+{
+	//Send command to read data from file.
+	agfs_write_cmd(socket_, cmd::READ);
+
+	//Send parameters
+	agfs_write_string(socket_, path);
+	agfs_write_size(socket_, size);
+	agfs_write_size(socket_, offset);
+
+	agerr_t error = 0;
+	agfs_read_error(socket_, error);
+
+	std::vector<unsigned char> data;
+	if (error >= 0) {
+		agsize_t amount_read = 0;
+		agfs_read_size(socket_, amount_read);
+		std::cerr << "size: " << amount_read << std::endl;
+
+		data.resize(amount_read);
+		error = std::min((long long)read(socket_, &data[0], amount_read), (long long)error);
+	}
+
+	return std::pair<std::vector<unsigned char>, agerr_t>{data, error};
 }
 
 /*********************
