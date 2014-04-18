@@ -514,7 +514,7 @@ static int agfs_opt_proc(void *data, const char *arg, int key, struct fuse_args 
 void heartBeats(std::map<std::string, ServerConnection>::iterator conn) 
 {
   usleep(5000000);
-  while(!conn->stopped()){
+  while(!conn->second.stopped()){
     
   }
 }
