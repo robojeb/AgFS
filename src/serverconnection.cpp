@@ -15,7 +15,8 @@
 #include <endian.h>
 
 ServerConnection::ServerConnection(std::string hostname, std::string port, std::string key):
-	beatsMissed_{false},
+	failedCommand_{false},
+	connectionStopped_{false},
 	hostname_{hostname},
 	socket_{-1}
 {
@@ -80,7 +81,8 @@ ServerConnection::ServerConnection(std::string hostname, std::string port, std::
 };
 
 ServerConnection::ServerConnection(ServerConnection const& connection) :
-	beatsMissed_{connection.beatsMissed_},
+	failedCommand_{connection.failedCommand_},
+	connectionStopped_{connection.connectionStopped_},
 	hostname_{connection.hostname_},
 	socket_{connection.socket_}
 {
@@ -93,6 +95,11 @@ bool ServerConnection::connected()
 		return false;
 	}
 	return true;
+}
+
+bool ServerConnection::stopped()
+{
+	return connectionStopped_;
 }
 
 agerr_t ServerConnection::stop()
@@ -230,6 +237,7 @@ std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t> ServerConne
  */
 std::pair<std::vector<unsigned char>, agerr_t> ServerConnection::readFile(const char* path, agsize_t size, agsize_t offset)
 {
+	std::lock_guard<std::mutex> l{monitor_};
 	//Send command to read data from file.
 	agfs_write_cmd(socket_, cmd::READ);
 
