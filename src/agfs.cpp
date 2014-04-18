@@ -492,6 +492,14 @@ static int agfs_opt_proc(void *data, const char *arg, int key, struct fuse_args 
      return 1;
 }*/
 
+void heartBeats(std::map<std::string, ServerConnection>::iterator conn) 
+{
+  usleep(5000000);
+  while(!conn->stopped()){
+    
+  }
+}
+
 
 static const boost::filesystem::path KEYDIRPATH(".agfs");
 static const std::string EXTENSION(".agkey");

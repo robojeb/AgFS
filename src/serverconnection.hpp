@@ -42,13 +42,22 @@ public:
 
 	/// Stop the connection
 	agerr_t stop();
+
+	//Perform a heartbeat operation
+	agerr_t heartbeat();
+
+	// Returns true if the connection was terminated succesfully
+	bool stopped();
 	
 private:
 
 	int dnsLookup(const char* port);
 
-	//Consecutive heartbeats missed
-	size_t beatsMissed_;
+	//heartbeat missed or 
+	bool failedCommand_;
+
+	//
+	bool connectionStopped_;
 
 	//The hostname
 	std::string hostname_;

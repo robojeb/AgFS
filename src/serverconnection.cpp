@@ -15,7 +15,7 @@
 #include <endian.h>
 
 ServerConnection::ServerConnection(std::string hostname, std::string port, std::string key):
-	beatsMissed_{0},
+	beatsMissed_{false},
 	hostname_{hostname},
 	socket_{-1}
 {
