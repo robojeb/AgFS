@@ -17,66 +17,11 @@
 ServerConnection::ServerConnection(std::string hostname, std::string port, std::string key):
 	beatsMissed_{0},
 	hostname_{hostname},
+	port_{port},
+	key_{key},
 	socket_{-1}
 {
-	//Perform DNS lookup and handle DNS errors.
-	socket_ = dnsLookup(port.c_str());
-
-	switch (socket_){
-	case DNS_ERROR:
-		std::cerr << "Failed DNS lookup" << std::endl;
-		return;
-		break;
-	case SOCKET_FAILURE:
-		std::cerr << "Failed to create socket" << std::endl;
-		return;
-		break;
-	case CONNECTION_FAILURE:
-		std::cerr << "Could not connect to server " << hostname << ":" << port << std::endl;
-		return;
-		break;
-	default:
-		break;
-	}
-
-	//Set timeout
-	struct timeval tv;
-	tv.tv_sec = CLIENT_BLOCK_SEC;
-	tv.tv_usec = CLIENT_BLOCK_USEC;
-	setsockopt(socket_, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)(&tv), sizeof(struct timeval));
-	int iMode = 0;
-	ioctl(socket_, FIONBIO, &iMode);  
-
-	//send key for verification
-	write(socket_, key.c_str(), ASCII_KEY_LEN);
-	cmd_t servResp;
-	agfs_read_cmd(socket_, servResp);
-
-	switch(servResp) {
-	case cmd::INVALID_KEY:
-		std::cerr << "Server " << hostname << ": Invalid key" << std::endl;
-		close(socket_);
-		socket_ = -1;
-		break;
-	case cmd::MOUNT_NOT_FOUND:
-		std::cerr << "Server " << hostname << ": Remote mount not found" << std::endl;
-		close(socket_);
-		socket_ = -1;
-		break;
-	case cmd::USER_NOT_FOUND:
-		std::cerr << "Server " << hostname << ": Remote user not found" << std::endl;
-		close(socket_);
-		socket_ = -1;
-		break;
-	case cmd::ACCEPT:
-		std::cerr << "Connected to server" << std::endl;
-		break;
-	default: 
-		std::cerr << "Other/No response: " << servResp << std::endl;
-		close(socket_);
-		socket_ = -1;
-		break;
-	}
+	connect();
 };
 
 ServerConnection::ServerConnection(ServerConnection const& connection) :
@@ -107,6 +52,67 @@ agerr_t ServerConnection::stop()
 	return error;
 }
 
+void ServerConnection::connect(){
+	//Perform DNS lookup and handle DNS errors.
+	socket_ = dnsLookup(port_.c_str());
+
+	switch (socket_){
+	case DNS_ERROR:
+		std::cerr << "Failed DNS lookup" << std::endl;
+		return;
+		break;
+	case SOCKET_FAILURE:
+		std::cerr << "Failed to create socket" << std::endl;
+		return;
+		break;
+	case CONNECTION_FAILURE:
+		std::cerr << "Could not connect to server " << hostname << ":" << port_ << std::endl;
+		return;
+		break;
+	default:
+		break;
+	}
+
+	//Set timeout
+	struct timeval tv;
+	tv.tv_sec = CLIENT_BLOCK_SEC;
+	tv.tv_usec = CLIENT_BLOCK_USEC;
+	setsockopt(socket_, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)(&tv), sizeof(struct timeval));
+	int iMode = 0;
+	ioctl(socket_, FIONBIO, &iMode);
+
+	//send key for verification
+	agfs_write_string(socket_, key.c_str());
+	cmd_t servResp;
+	agfs_read_cmd(socket_, servResp);
+
+	switch(servResp) {
+	case cmd::INVALID_KEY:
+		std::cerr << "Server " << hostname << ": Invalid key" << std::endl;
+		close(socket_);
+		socket_ = -1;
+		break;
+	case cmd::MOUNT_NOT_FOUND:
+		std::cerr << "Server " << hostname << ": Remote mount not found" << std::endl;
+		close(socket_);
+		socket_ = -1;
+		break;
+	case cmd::USER_NOT_FOUND:
+		std::cerr << "Server " << hostname << ": Remote user not found" << std::endl;
+		close(socket_);
+		socket_ = -1;
+		break;
+	case cmd::ACCEPT:
+		std::cerr << "Connected to server" << std::endl;
+		break;
+	default:
+		std::cerr << "Other/No response: " << servResp << std::endl;
+		close(socket_);
+		socket_ = -1;
+		break;
+	}
+}
+
 /******************
  * FUSE functions *
  ******************/
@@ -118,7 +124,7 @@ agerr_t ServerConnection::stop()
 
 /*
  * Outgoing stack looks like:
- * 
+ *
  *      STRING
  *
  * Incoming stack looks like:
@@ -131,7 +137,7 @@ std::pair<struct stat, agerr_t> ServerConnection::getattr(const char* path)
 	//Let server know we want file metadata
 	cmd_t cmd = cmd::GETATTR;
 	agfs_write_cmd(socket_, cmd);
-	
+
 	//Outgoing stack calls
 	agfs_write_string(socket_, path);
 
@@ -149,7 +155,7 @@ std::pair<struct stat, agerr_t> ServerConnection::getattr(const char* path)
 
 /*
  * Outgoing stack looks like:
- * 
+ *
  *      STRING MASK
  *
  * Incoming stack looks like:
@@ -167,7 +173,7 @@ agerr_t ServerConnection::access(const char* path, int mask)
 	agfs_write_string(socket_, path);
 
 	agfs_write_mask(socket_, (agmask_t)mask);
-	
+
 	//Incoming stack calls
 	agerr_t retValue;
 	agfs_read_error(socket_, retValue);
@@ -177,7 +183,7 @@ agerr_t ServerConnection::access(const char* path, int mask)
 
 /*
  * Outgoing stack looks like:
- * 
+ *
  *      STRING
  *
  * Incoming stack looks like:
@@ -187,13 +193,13 @@ agerr_t ServerConnection::access(const char* path, int mask)
 std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t> ServerConnection::readdir(const char* path)
 {
 	std::lock_guard<std::mutex> l{monitor_};
-	//Let server know we want to read a directory. 
+	//Let server know we want to read a directory.
 	cmd_t cmd = cmd::READDIR;
 	agfs_write_cmd(socket_, cmd);
 
 	//Outgoing stack calls
 	agfs_write_string(socket_, path);
-	
+
 	//Incoming stack calls
 	agerr_t error = 0;
 	agfs_read_error(socket_, error);
@@ -221,7 +227,7 @@ std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t> ServerConne
 
 /*
  * Outgoing stack looks like:
- * 
+ *
  *      STRING SIZE OFFSET
  *
  * Incoming stack looks like:
@@ -264,12 +270,12 @@ int ServerConnection::dnsLookup(const char* port)
   int error, fd;
 
   memset(&hints, 0, sizeof(hints));
-  
+
   hints.ai_flags = AI_ADDRCONFIG | AI_V4MAPPED;
   hints.ai_family = AF_INET;
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = AI_CANONNAME;
-  
+
   if ((error = getaddrinfo(hostname_.c_str(), port, &hints, &hostaddress)) != 0) {
     return DNS_ERROR;
   }

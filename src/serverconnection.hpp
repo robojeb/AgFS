@@ -14,7 +14,10 @@ public:
 	ServerConnection(ServerConnection const& connection);
 
 	/// Returns true if we have a healty connection with the server
-	bool connected(); 
+	bool connected();
+
+	/// Returns true if we successfully terminated the connection to the server
+	bool closed();
 
 	/// Returns the hostname
 	std::string hostname();
@@ -36,7 +39,7 @@ public:
 	/**
 	 * \brief Execute readdir on a specified path
 	 * \param path String containing the path to be looked up
-	 * \returns a pair of a vector containing the children files/directories, 
+	 * \returns a pair of a vector containing the children files/directories,
 	  *         and any error generated.
 	 */
 	std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t> readdir(const char* path);
@@ -46,7 +49,7 @@ public:
 	 * \param path String containing the path to be looked up
 	 * \param size The number of bytes to read from the file.
 	 * \param offset The offset to start reading from.
-	 * \returns a pair of a vector containing the children files/directories, 
+	 * \returns a pair of a vector containing the children files/directories,
 	  *         and any error generated.
 	 */
 	std::pair<std::vector<unsigned char>, agerr_t> readFile(const char* path, agsize_t size, agsize_t offset);
@@ -56,8 +59,11 @@ public:
 	 * \returns an error indicating the success of the connection halt.
 	 */
 	agerr_t stop();
-	
+
 private:
+
+	///Helper function which connects us to the server
+	bool connect(std::string key);
 
 	int dnsLookup(const char* port);
 
@@ -66,6 +72,12 @@ private:
 
 	//The hostname
 	std::string hostname_;
+
+	//The port we connect on
+	std::port port_;
+
+	//The key we use to connect
+	std::string key_;
 
 	//A mutex to turn this object into a monitor
 	std::mutex monitor_;
