@@ -253,13 +253,53 @@ std::pair<std::vector<unsigned char>, agerr_t> ServerConnection::readFile(const 
 	if (error >= 0) {
 		agsize_t amount_read = 0;
 		agfs_read_size(socket_, amount_read);
-		std::cerr << "size: " << amount_read << std::endl;
 
 		data.resize(amount_read);
 		error = std::min((long long)read(socket_, &data[0], amount_read), (long long)error);
 	}
 
 	return std::pair<std::vector<unsigned char>, agerr_t>{data, error};
+}
+
+/*
+ * Outgoing stack looks like:
+ * 
+ *      STRING SIZE OFFSET DATA
+ *
+ * Incoming stack looks like:
+ *
+ *      ERROR [SIZE]
+ */
+std::pair<agsize_t, agerr_t> ServerConnection::writeFile(const char* path, agsize_t size, agsize_t offset, const char* buf) {
+	std::lock_guard<std::mutex> l{monitor_};
+	//Send command to write data to file.
+	agfs_write_cmd(socket_, cmd::WRITE);
+
+	//Send parameters.
+	agfs_write_string(socket_, path);
+	agfs_write_size(socket_, size);
+	agfs_write_size(socket_, offset);
+
+	//Write the buffer data to the socket.
+	agsize_t total_written = 0;
+	agerr_t error;
+	while (total_written != size &&
+		(error = write(socket_, buf + total_written, size - total_written)) > 0) {
+		total_written += error;
+	}
+
+	//Handle an error writing to the socket.
+	if (error < 0) {
+		return std::pair<agsize_t, agerr_t>{0, -errno};
+	}
+
+	//Read in the return values.
+	agfs_read_error(socket_, error);
+	if (error >= 0) {
+		agfs_read_size(socket_, total_written);
+	}
+
+	return std::pair<agsize_t, agerr_t>{total_written, error};
 }
 
 /*********************

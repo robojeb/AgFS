@@ -46,10 +46,20 @@ public:
 	 * \param path String containing the path to be looked up
 	 * \param size The number of bytes to read from the file.
 	 * \param offset The offset to start reading from.
-	 * \returns a pair of a vector containing the children files/directories, 
-	  *         and any error generated.
+	 * \returns A pair of a vector of the data that the server
+	 *          read from the file and an error code.
 	 */
 	std::pair<std::vector<unsigned char>, agerr_t> readFile(const char* path, agsize_t size, agsize_t offset);
+
+	/**
+	 * \brief Execute write on a specified path
+	 * \param path String containing the path to be looked up
+	 * \param size The number of bytes to write to the file.
+	 * \param offset The offset to start writing at.
+	 * \returns A pair of the number of bytes written and the error
+	 *          code returned by the external server.
+	 */
+	std::pair<agsize_t, agerr_t> writeFile(const char* path, agsize_t size, agsize_t offset, const char* buf);
 
 	/**
 	 * \brief Halt communication with the server
