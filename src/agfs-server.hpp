@@ -30,6 +30,7 @@ private:
 	void processRead();
 	void processOpen();
 	void processRelease();
+	void processWrite();
 
 	boost::filesystem::path mountPoint_;
 	int fd_;
