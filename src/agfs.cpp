@@ -359,7 +359,7 @@ static int agfs_read(const char *path, char *buf, size_t size, off_t offset,
 
   (void)fi;
 
-  return retVal.second;
+  return retVal.second >= 0 ? retVal.first.size() : retVal.second;
 }
 
 static int agfs_write(const char *path, const char *buf, size_t size,
