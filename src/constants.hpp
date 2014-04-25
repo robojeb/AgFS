@@ -77,6 +77,9 @@ namespace cmd {
 
 	/// Command to execute a READ
 	constexpr cmd_t READ = 9;
+
+	/// Command to execute a WRITE
+	constexpr cmd_t WRITE = 10;
 }
 
 #endif
