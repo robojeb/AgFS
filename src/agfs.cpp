@@ -41,6 +41,8 @@
 #include "disambiguater.hpp"
 #include <sys/types.h>
 #include <map>
+#include <chrono>
+#include <thread>
 
 /**************
  * GLOBALS *
@@ -454,7 +456,7 @@ static int agfs_removexattr(const char *path, const char *name)
 /************************************
  * OPTIONS PROCESSING (Not working) *
  ************************************/
- 
+
 
 /*struct agfs_config {
   char* instanceFile;
@@ -511,6 +513,20 @@ static int agfs_opt_proc(void *data, const char *arg, int key, struct fuse_args 
      return 1;
 }*/
 
+void heartbeatThread(ServerConnection& conn) {
+    std::chrono::seconds beatTime{5};
+    std::chrono::seconds reconnTime{30};
+    while(!conn.closed()) {
+        if (!conn.connected()) {
+            std::this_thread::sleep_for(reconnTime);
+            conn.connect();
+        } else {
+            std::this_thread::sleep_for(beatTime);
+            conn.heartbeat();
+        }
+    }
+}
+
 
 static const boost::filesystem::path KEYDIRPATH(".agfs");
 static const std::string EXTENSION(".agkey");
@@ -547,6 +563,11 @@ int main(int argc, char *argv[])
         keyfile.close();
       }
     }
+  }
+
+  std::vector<std::thread> threads;
+  for (auto& connPair: connections) {
+      threads.push_back(std::thread(heartbeatThread, std::ref(connPair.second)));
   }
 
   memset(&agfs_oper, 0, sizeof(struct fuse_operations));

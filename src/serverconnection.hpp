@@ -60,10 +60,18 @@ public:
 	 */
 	agerr_t stop();
 
-private:
+	/**
+	 * \brief Send a heartbeat and synchronize the server size
+	 * \returns an error indicating the success of the heartbeat
+	 */
+	agerr_t heartbeat();
+
 
 	///Helper function which connects us to the server
 	void connect();
+
+private:
+
 
 	int dnsLookup(const char* port);
 
@@ -84,6 +92,9 @@ private:
 
 	//Socket descriptor
 	int socket_;
+
+	//Connection closed
+	bool closed_;
 
 	enum {
 		DNS_ERROR = -1,

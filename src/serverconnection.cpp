@@ -19,7 +19,8 @@ ServerConnection::ServerConnection(std::string hostname, std::string port, std::
 	hostname_{hostname},
 	port_{port},
 	key_{key},
-	socket_{-1}
+	socket_{-1},
+	closed_{false}
 {
 	connect();
 };
@@ -49,7 +50,13 @@ agerr_t ServerConnection::stop()
 		error = close(socket_);
 		socket_ = -1;
 	}
+	closed_ = true;
 	return error;
+}
+
+bool ServerConnection::closed()
+{
+	return closed_;
 }
 
 void ServerConnection::connect(){
@@ -83,7 +90,7 @@ void ServerConnection::connect(){
 
 	//send key for verification
 	agfs_write_string(socket_, key_);
-	cmd_t servResp;
+	cmd_t servResp = cmd::NONE;
 	agfs_read_cmd(socket_, servResp);
 
 	switch(servResp) {
@@ -258,6 +265,21 @@ std::pair<std::vector<unsigned char>, agerr_t> ServerConnection::readFile(const 
 	}
 
 	return std::pair<std::vector<unsigned char>, agerr_t>{data, error};
+}
+
+agerr_t ServerConnection::heartbeat()
+{
+	agfs_write_cmd(socket_, cmd::HEARTBEAT);
+	cmd_t resp = cmd::NONE;
+	agfs_read_cmd(socket_, resp);
+	if (resp == cmd::NONE) {
+		//Failed to get heartbeat in timeout period so close socket
+		close(socket_);
+		socket_ = -1;
+	} else {
+		//Here we would get sizes from the server
+	}
+	return 0;
 }
 
 /*********************
