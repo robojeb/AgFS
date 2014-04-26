@@ -66,7 +66,7 @@ void ServerConnection::connect(){
 		return;
 		break;
 	case CONNECTION_FAILURE:
-		std::cerr << "Could not connect to server " << hostname << ":" << port_ << std::endl;
+		std::cerr << "Could not connect to server " << hostname_ << ":" << port_ << std::endl;
 		return;
 		break;
 	default:
@@ -82,23 +82,23 @@ void ServerConnection::connect(){
 	ioctl(socket_, FIONBIO, &iMode);
 
 	//send key for verification
-	agfs_write_string(socket_, key.c_str());
+	agfs_write_string(socket_, key_);
 	cmd_t servResp;
 	agfs_read_cmd(socket_, servResp);
 
 	switch(servResp) {
 	case cmd::INVALID_KEY:
-		std::cerr << "Server " << hostname << ": Invalid key" << std::endl;
+		std::cerr << "Server " << hostname_ << ": Invalid key" << std::endl;
 		close(socket_);
 		socket_ = -1;
 		break;
 	case cmd::MOUNT_NOT_FOUND:
-		std::cerr << "Server " << hostname << ": Remote mount not found" << std::endl;
+		std::cerr << "Server " << hostname_ << ": Remote mount not found" << std::endl;
 		close(socket_);
 		socket_ = -1;
 		break;
 	case cmd::USER_NOT_FOUND:
-		std::cerr << "Server " << hostname << ": Remote user not found" << std::endl;
+		std::cerr << "Server " << hostname_ << ": Remote user not found" << std::endl;
 		close(socket_);
 		socket_ = -1;
 		break;
@@ -139,7 +139,7 @@ std::pair<struct stat, agerr_t> ServerConnection::getattr(const char* path)
 	agfs_write_cmd(socket_, cmd);
 
 	//Outgoing stack calls
-	agfs_write_string(socket_, path);
+	agfs_write_string(socket_, std::string(path));
 
 	agerr_t error = 0;
 	agfs_read_error(socket_, error);
@@ -170,7 +170,7 @@ agerr_t ServerConnection::access(const char* path, int mask)
 	agfs_write_cmd(socket_, cmd);
 
 	//Outgoing stack calls
-	agfs_write_string(socket_, path);
+	agfs_write_string(socket_, std::string(path));
 
 	agfs_write_mask(socket_, (agmask_t)mask);
 
@@ -198,7 +198,7 @@ std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t> ServerConne
 	agfs_write_cmd(socket_, cmd);
 
 	//Outgoing stack calls
-	agfs_write_string(socket_, path);
+	agfs_write_string(socket_, std::string(path));
 
 	//Incoming stack calls
 	agerr_t error = 0;
@@ -240,7 +240,7 @@ std::pair<std::vector<unsigned char>, agerr_t> ServerConnection::readFile(const 
 	agfs_write_cmd(socket_, cmd::READ);
 
 	//Send parameters
-	agfs_write_string(socket_, path);
+	agfs_write_string(socket_, std::string(path));
 	agfs_write_size(socket_, size);
 	agfs_write_size(socket_, offset);
 
@@ -286,7 +286,7 @@ int ServerConnection::dnsLookup(const char* port)
   	return SOCKET_FAILURE;
   }
 
-  if (connect(fd, hostaddress->ai_addr, hostaddress->ai_addrlen) == -1) {
+  if (::connect(fd, hostaddress->ai_addr, hostaddress->ai_addrlen) == -1) {
   	return CONNECTION_FAILURE;
   }
 

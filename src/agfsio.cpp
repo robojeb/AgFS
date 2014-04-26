@@ -59,16 +59,16 @@ int agfs_read_error(int fd, agerr_t& err)
 	return error;
 }
 
-int agfs_write_string(int fd, const char* str)
+int agfs_write_string(int fd, const std::string& str)
 {
 	int total_written = 0, err;
-	if ((err = agfs_write_size(fd, strlen(str))) < 0)
+	if ((err = agfs_write_size(fd, str.length())) < 0)
 	{
 		return err;
 	}
 	total_written += err;
 
-	if ((err = write(fd, str, strlen(str) * sizeof(char))) < 0)
+	if ((err = write(fd, str.c_str(), str.length() * sizeof(char))) < 0)
 	{
 		return err;
 	}

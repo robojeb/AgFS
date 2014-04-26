@@ -63,7 +63,7 @@ public:
 private:
 
 	///Helper function which connects us to the server
-	bool connect(std::string key);
+	void connect();
 
 	int dnsLookup(const char* port);
 
@@ -74,7 +74,7 @@ private:
 	std::string hostname_;
 
 	//The port we connect on
-	std::port port_;
+	std::string port_;
 
 	//The key we use to connect
 	std::string key_;

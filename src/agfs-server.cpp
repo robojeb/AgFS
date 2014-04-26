@@ -23,7 +23,7 @@ ClientConnection::ClientConnection(int connfd) {
 	tv.tv_usec = SERVER_BLOCK_USEC;
 	setsockopt(connfd, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)(&tv), sizeof(struct timeval));
 	int iMode = 0;
-	ioctl(connfd, FIONBIO, &iMode); 
+	ioctl(connfd, FIONBIO, &iMode);
 
 	//Verify server key
 	char key[ASCII_KEY_LEN+1];
@@ -133,7 +133,7 @@ void ClientConnection::processHeartbeat() {
 
 /*
  * Incoming stack looks like:
- * 
+ *
  *      STRING
  *
  * Outgoing stack looks like:
@@ -162,7 +162,7 @@ void ClientConnection::processGetAttr() {
 
 /*
  * Incoming stack looks like:
- * 
+ *
  *      STRING MASK
  *
  * Outgoing stack looks like:
@@ -191,7 +191,7 @@ void ClientConnection::processAccess() {
 
 /*
  * Incoming stack looks like:
- * 
+ *
  *      STRING
  *
  * Outgoing stack looks like:
@@ -232,9 +232,9 @@ void ClientConnection::processReaddir() {
 		struct stat stbuf;
 		for (boost::filesystem::directory_iterator dir_itr(file);
 			dir_itr != end_itr; dir_itr++) {
-			
+
 			//Write the relative name here
-			agfs_write_string(fd_, dir_itr->path().filename().c_str());
+			agfs_write_string(fd_, dir_itr->path().filename().string());
 
 			//We need to stat the absolute name here
 			memset(&stbuf, 0, sizeof(struct stat));
@@ -246,7 +246,7 @@ void ClientConnection::processReaddir() {
 
 /*
  * Incoming stack looks like:
- * 
+ *
  *      STRING SIZE OFFSET
  *
  * Outgoing stack looks like:
@@ -287,7 +287,7 @@ void ClientConnection::processRead()
 	agsize_t total_read = 0;
 	std::vector<unsigned char> buf;
 	buf.resize(size);
-	while (total_read != size && 
+	while (total_read != size &&
 			(error = read(fd, &buf[0] + total_read, size - total_read)) > 0) {
 		total_read += error;
 	}
@@ -311,4 +311,3 @@ void ClientConnection::processRelease()
 {
 
 }
-
