@@ -44,6 +44,14 @@
 #include <chrono>
 #include <thread>
 
+/*
+ * Assumes an ambiguated path input and queries all servers
+ * for that file.
+ */
+std::vector<std::string> checkExistance(std::string path) {
+    return std::vector<std::string>();
+}
+
 /**************
  * GLOBALS *
  ***********/
