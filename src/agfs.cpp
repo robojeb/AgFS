@@ -77,10 +77,12 @@ static int agfs_getattr(const char *path, struct stat *stbuf)
   } else {
     //Otherwise, iterate through all connections to find the first such file.
     for (it = connections.begin(); it != connections.end(); ++it) {
-      retVal = it->second.getattr(file.c_str());
+      if (it->second.connected()) {
+        retVal = it->second.getattr(file.c_str());
 
-      if (retVal.second >= 0) {
-        break;
+        if (retVal.second >= 0) {
+          break;
+        }
       }
     }
   }
