@@ -323,11 +323,14 @@ void ClientConnection::processRelease()
 /*
  * Incoming stack looks like:
  * 
- *      STRING SIZE OFFSET DATA
+ *      STRING [SIZE OFFSET DATA]
  *
  * Outgoing stack looks like:
  *
- *      ERROR [SIZE]
+ *      ERROR [ERROR [SIZE]]
+ *
+ * The incoming stack will only contain parameters if the first error we return 
+ * indicates that that the file is on our machine.
  *
  * A quick note on the above outgoing stack. Although it may look like we can 
  * get away with using the error value as the size, this is not true because 
@@ -344,19 +347,25 @@ void ClientConnection::processWrite() {
 	boost::filesystem::path file{mountPoint_};
 	file /= fusePath;
 
+	//Open the file to the correct location.
+	int fd;
+	agerr_t error = 0;
+	if ((fd = open(file.c_str(), O_WRONLY)) < 0)
+	{
+		error = -errno;
+	}
+
+	agfs_write_error(fd_, error);
+	if (error < 0) {
+		return;
+	}
+
 	agsize_t size = 0;
 	agfs_read_size(fd_, size);
 
 	agsize_t offset = 0;
 	agfs_read_size(fd_, offset);
 
-	//Open the file to the correct location.
-	int fd;
-	if ((fd = open(file.c_str(), O_WRONLY)) < 0)
-	{
-		agfs_write_error(fd_, -errno);
-		return;
-	}
 	lseek(fd, offset, SEEK_SET);
 
 	//Read data into buffer and write data into the file at the same time.
@@ -378,6 +387,7 @@ void ClientConnection::processWrite() {
 			return;
 		}
 	}
+	close(fd);
 
 	agfs_write_error(fd_, error);
 	if (error >= 0) {

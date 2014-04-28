@@ -264,11 +264,11 @@ std::pair<std::vector<unsigned char>, agerr_t> ServerConnection::readFile(const 
 /*
  * Outgoing stack looks like:
  * 
- *      STRING SIZE OFFSET DATA
+ *      STRING [SIZE OFFSET DATA]
  *
  * Incoming stack looks like:
  *
- *      ERROR [SIZE]
+ *      ERROR [ERROR [SIZE]]
  */
 std::pair<agsize_t, agerr_t> ServerConnection::writeFile(const char* path, agsize_t size, agsize_t offset, const char* buf) {
 	std::lock_guard<std::mutex> l{monitor_};
@@ -277,6 +277,13 @@ std::pair<agsize_t, agerr_t> ServerConnection::writeFile(const char* path, agsiz
 
 	//Send parameters.
 	agfs_write_string(socket_, path);
+
+	agerr_t error = 0;
+	agfs_read_error(socket_, error);
+	if (error < 0) {
+		return std::pair<agsize_t, agerr_t>{0, error};
+	}
+
 	agfs_write_size(socket_, size);
 	agfs_write_size(socket_, offset);
 
