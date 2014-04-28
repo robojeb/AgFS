@@ -33,6 +33,7 @@ private:
 
 	boost::filesystem::path mountPoint_;
 	int fd_;
+	int beatsMissed_;
 };
 
 

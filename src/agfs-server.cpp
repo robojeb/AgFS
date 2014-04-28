@@ -26,14 +26,15 @@ ClientConnection::ClientConnection(int connfd) {
 	ioctl(connfd, FIONBIO, &iMode);
 
 	//Verify server key
+	std::string clientKey;
 	char key[ASCII_KEY_LEN+1];
 	memset(key, 0, ASCII_KEY_LEN+1);
-	read(connfd, key, ASCII_KEY_LEN);
+	//read(connfd, key, ASCII_KEY_LEN);
+	agfs_read_string(connfd, clientKey);
 
 	std::fstream authkeys;
 	authkeys.open(KEY_LIST_PATH, std::fstream::in);
 
-	std::string clientKey{key};
 	std::string mountPath, user, serverKey;
 	bool validKey = false;
 
@@ -77,6 +78,7 @@ ClientConnection::ClientConnection(int connfd) {
 
 	fd_ = connfd;
 	mountPoint_ = mountPath;
+	beatsMissed_ = 0;
 }
 
 bool ClientConnection::connected() {
@@ -92,6 +94,12 @@ void ClientConnection::processCommands() {
 		int respVal = agfs_read_cmd(fd_, cmd);
 		if(respVal <= 0) {
 			std::cout << "Missed heartbeat" << std::endl;
+			beatsMissed_ += 1;
+			if (beatsMissed_ > 5) {
+				close(fd_);
+				fd_ = -1;
+				return;
+			}
 		} else {
 			switch(cmd) {
 			case cmd::STOP:
