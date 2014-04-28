@@ -560,7 +560,9 @@ int main(int argc, char *argv[])
           keyfile >> port;
           keyfile >> key;
           ServerConnection connection{hostname, port, key};
-          connections.insert(std::make_pair(hostname, connection));
+          if (connection.connected() && !connection.stopped()) {
+            connections.insert(std::make_pair(hostname, connection));
+          }
         }
         keyfile.close();
       }
