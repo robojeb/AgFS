@@ -14,7 +14,10 @@ public:
 	ServerConnection(ServerConnection const& connection);
 
 	/// Returns true if we have a healty connection with the server
-	bool connected(); 
+	bool connected();
+
+	/// Returns true if we successfully terminated the connection to the server
+	bool closed();
 
 	/// Returns the hostname
 	std::string hostname();
@@ -36,7 +39,7 @@ public:
 	/**
 	 * \brief Execute readdir on a specified path
 	 * \param path String containing the path to be looked up
-	 * \returns a pair of a vector containing the children files/directories, 
+	 * \returns a pair of a vector containing the children files/directories,
 	  *         and any error generated.
 	 */
 	std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t> readdir(const char* path);
@@ -67,17 +70,26 @@ public:
 	 */
 	agerr_t stop();
 
-	//Perform a heartbeat operation
-	agerr_t heartbeat();
 
 	// Returns true if the connection was terminated succesfully
 	bool stopped();
-	
+
+	/**
+	 * \brief Send a heartbeat and synchronize the server size
+	 * \returns an error indicating the success of the heartbeat
+	 */
+	agerr_t heartbeat();
+
+
+	///Helper function which connects us to the server
+	void connect();
+
 private:
+
 
 	int dnsLookup(const char* port);
 
-	//heartbeat missed or 
+	//heartbeat missed or
 	bool failedCommand_;
 
 	//
@@ -86,11 +98,20 @@ private:
 	//The hostname
 	std::string hostname_;
 
+	//The port we connect on
+	std::string port_;
+
+	//The key we use to connect
+	std::string key_;
+
 	//A mutex to turn this object into a monitor
 	std::mutex monitor_;
 
 	//Socket descriptor
 	int socket_;
+
+	//Connection closed
+	bool closed_;
 
 	enum {
 		DNS_ERROR = -1,

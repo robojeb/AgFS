@@ -23,17 +23,18 @@ ClientConnection::ClientConnection(int connfd) {
 	tv.tv_usec = SERVER_BLOCK_USEC;
 	setsockopt(connfd, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)(&tv), sizeof(struct timeval));
 	int iMode = 0;
-	ioctl(connfd, FIONBIO, &iMode); 
+	ioctl(connfd, FIONBIO, &iMode);
 
 	//Verify server key
+	std::string clientKey;
 	char key[ASCII_KEY_LEN+1];
 	memset(key, 0, ASCII_KEY_LEN+1);
-	read(connfd, key, ASCII_KEY_LEN);
+	//read(connfd, key, ASCII_KEY_LEN);
+	agfs_read_string(connfd, clientKey);
 
 	std::fstream authkeys;
 	authkeys.open(KEY_LIST_PATH, std::fstream::in);
 
-	std::string clientKey{key};
 	std::string mountPath, user, serverKey;
 	bool validKey = false;
 
@@ -77,6 +78,7 @@ ClientConnection::ClientConnection(int connfd) {
 
 	fd_ = connfd;
 	mountPoint_ = mountPath;
+	beatsMissed_ = 0;
 }
 
 bool ClientConnection::connected() {
@@ -92,6 +94,12 @@ void ClientConnection::processCommands() {
 		int respVal = agfs_read_cmd(fd_, cmd);
 		if(respVal <= 0) {
 			std::cout << "Missed heartbeat" << std::endl;
+			beatsMissed_ += 1;
+			if (beatsMissed_ > 5) {
+				close(fd_);
+				fd_ = -1;
+				return;
+			}
 		} else {
 			switch(cmd) {
 			case cmd::STOP:
@@ -119,10 +127,6 @@ void ClientConnection::processCommands() {
 				std::cerr << "READ called" << std::endl;
 				processRead();
 				break;
-			case cmd::WRITE:
-				std::cerr << "WRITE called" << std::endl;
-				processWrite();
-				break;
 			default:
 				std::cerr << "Unknown command" << std::endl;
 			}
@@ -137,7 +141,7 @@ void ClientConnection::processHeartbeat() {
 
 /*
  * Incoming stack looks like:
- * 
+ *
  *      STRING
  *
  * Outgoing stack looks like:
@@ -166,7 +170,7 @@ void ClientConnection::processGetAttr() {
 
 /*
  * Incoming stack looks like:
- * 
+ *
  *      STRING MASK
  *
  * Outgoing stack looks like:
@@ -195,7 +199,7 @@ void ClientConnection::processAccess() {
 
 /*
  * Incoming stack looks like:
- * 
+ *
  *      STRING
  *
  * Outgoing stack looks like:
@@ -236,9 +240,9 @@ void ClientConnection::processReaddir() {
 		struct stat stbuf;
 		for (boost::filesystem::directory_iterator dir_itr(file);
 			dir_itr != end_itr; dir_itr++) {
-			
+
 			//Write the relative name here
-			agfs_write_string(fd_, dir_itr->path().filename().c_str());
+			agfs_write_string(fd_, dir_itr->path().filename().string());
 
 			//We need to stat the absolute name here
 			memset(&stbuf, 0, sizeof(struct stat));
@@ -250,18 +254,12 @@ void ClientConnection::processReaddir() {
 
 /*
  * Incoming stack looks like:
- * 
+ *
  *      STRING SIZE OFFSET
  *
  * Outgoing stack looks like:
  *
  *      ERROR [SIZE [DATA]*]
- * 
- * A quick note on the above outgoing stack. Although it may look like we can 
- * get away with using the error value as the size, this is not true because 
- * an error type is signed, whereas a size type is unsigned. If we were to use
- * the error to hold the total number of bytes read, we would have a very rare
- * bug that would occur when we tried to read large swaths of large files.
  */
 void ClientConnection::processRead()
 {
@@ -297,11 +295,13 @@ void ClientConnection::processRead()
 	agsize_t total_read = 0;
 	std::vector<unsigned char> buf;
 	buf.resize(size);
-	while (total_read != size && 
+	while (total_read != size &&
 			(error = read(fd, &buf[0] + total_read, size - total_read)) > 0) {
 		total_read += error;
 	}
-
+	//Write the total number of bytes sent to the error value,
+	//unless there was a legitimate error.
+	error = error >= 0 ? total_read : error;
 	agfs_write_error(fd_, error);
 
 	if (error >= 0) {
@@ -319,79 +319,3 @@ void ClientConnection::processRelease()
 {
 
 }
-
-/*
- * Incoming stack looks like:
- * 
- *      STRING [SIZE OFFSET DATA]
- *
- * Outgoing stack looks like:
- *
- *      ERROR [ERROR [SIZE]]
- *
- * The incoming stack will only contain parameters if the first error we return 
- * indicates that that the file is on our machine.
- *
- * A quick note on the above outgoing stack. Although it may look like we can 
- * get away with using the error value as the size, this is not true because 
- * an error type is signed, whereas a size type is unsigned. If we were to use
- * the error to hold the total number of bytes written, we would have a very
- * rare bug that would occur when we tried to write large buffers to files.
- */
-void ClientConnection::processWrite() {
-	std::string path;
-	agfs_read_string(fd_, path);
-
-	//Cosntruct the filepath
-	boost::filesystem::path fusePath{path};
-	boost::filesystem::path file{mountPoint_};
-	file /= fusePath;
-
-	//Open the file to the correct location.
-	int fd;
-	agerr_t error = 0;
-	if ((fd = open(file.c_str(), O_WRONLY)) < 0)
-	{
-		error = -errno;
-	}
-
-	agfs_write_error(fd_, error);
-	if (error < 0) {
-		return;
-	}
-
-	agsize_t size = 0;
-	agfs_read_size(fd_, size);
-
-	agsize_t offset = 0;
-	agfs_read_size(fd_, offset);
-
-	lseek(fd, offset, SEEK_SET);
-
-	//Read data into buffer and write data into the file at the same time.
-	std::vector<unsigned char> data{};
-	data.resize(size);
-	agsize_t total_read = 0, total_written = 0;
-	error = 0;
-	while (total_read != size &&
-			(error = read(fd_, &data[0] + total_read, size - total_read)) > 0) {
-		total_read += error;
-
-		//We should be okay to use error here, since we are guaranteed that
-		//it is positive.
-		if ((error = write(fd, &data[0] + total_read - error, error)) > 0) {
-			total_written += error;
-		}
-		else {
-			agfs_write_error(fd_, -errno);
-			return;
-		}
-	}
-	close(fd);
-
-	agfs_write_error(fd_, error);
-	if (error >= 0) {
-		agfs_write_size(fd_, total_written);
-	}
-}
-

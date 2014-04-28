@@ -1,6 +1,6 @@
 /**
  * @file constants.hpp
- */ 
+ */
 
 
 #ifndef CONSTANTS_HPP_INC
@@ -11,7 +11,7 @@
 
 /**
  * Commands issued by AgFS
- */ 
+ */
 typedef uint16_t cmd_t;
 
 typedef uint64_t agsize_t;
@@ -80,6 +80,9 @@ namespace cmd {
 
 	/// Command to execute a WRITE
 	constexpr cmd_t WRITE = 10;
+
+    /// Command for no response
+    constexpr cmd_t NONE = 11;
 }
 
 #endif

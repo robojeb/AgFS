@@ -7,7 +7,7 @@
  * different endianness. The IO methods present in this file and accompanying
  * cpp file will all handle endianness appropriately. In addition, after having
  * written data to a socket the corresponding read method can be called on the
- * other end and the exact same data will come out (assuming there are no IO 
+ * other end and the exact same data will come out (assuming there are no IO
  * errors with the pipe).
  */
 
@@ -99,7 +99,7 @@ int agfs_read_stat(int fd, struct stat& buf);
 * \param fd The file descriptor of the connection to write on
 * \param cmd The stat struct to write
 */
-int agfs_write_string(int fd, const char* str);
+int agfs_write_string(int fd, const std::string& str);
 
 /**
 * \brief Read a stat struct on the connection.

@@ -41,6 +41,8 @@
 #include "disambiguater.hpp"
 #include <sys/types.h>
 #include <map>
+#include <chrono>
+#include <thread>
 
 /**************
  * GLOBALS *
@@ -75,10 +77,12 @@ static int agfs_getattr(const char *path, struct stat *stbuf)
   } else {
     //Otherwise, iterate through all connections to find the first such file.
     for (it = connections.begin(); it != connections.end(); ++it) {
-      retVal = it->second.getattr(file.c_str());
+      if (it->second.connected()) {
+        retVal = it->second.getattr(file.c_str());
 
-      if (retVal.second >= 0) {
-        break;
+        if (retVal.second >= 0) {
+          break;
+        }
       }
     }
   }
@@ -464,7 +468,7 @@ static int agfs_removexattr(const char *path, const char *name)
 /************************************
  * OPTIONS PROCESSING (Not working) *
  ************************************/
- 
+
 
 /*struct agfs_config {
   char* instanceFile;
@@ -521,12 +525,19 @@ static int agfs_opt_proc(void *data, const char *arg, int key, struct fuse_args 
      return 1;
 }*/
 
-void heartBeats(std::map<std::string, ServerConnection>::iterator conn) 
-{
-  usleep(5000000);
-  while(!conn->second.stopped()){
-    
-  }
+
+void heartbeatThread(ServerConnection& conn) {
+    std::chrono::seconds beatTime{5};
+    std::chrono::seconds reconnTime{30};
+    while(!conn.closed()) {
+        if (!conn.connected()) {
+            std::this_thread::sleep_for(reconnTime);
+            conn.connect();
+        } else {
+            std::this_thread::sleep_for(beatTime);
+            conn.heartbeat();
+        }
+    }
 }
 
 
@@ -567,6 +578,11 @@ int main(int argc, char *argv[])
         keyfile.close();
       }
     }
+  }
+
+  std::vector<std::thread> threads;
+  for (auto& connPair: connections) {
+      threads.push_back(std::thread(heartbeatThread, std::ref(connPair.second)));
   }
 
   memset(&agfs_oper, 0, sizeof(struct fuse_operations));
