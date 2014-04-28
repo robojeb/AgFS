@@ -386,6 +386,8 @@ static int agfs_write(const char *path, const char *buf, size_t size,
     }
   }
 
+  (void)fi;
+
   return retVal.second;
 }
 
