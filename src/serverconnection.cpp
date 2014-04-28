@@ -289,7 +289,6 @@ std::pair<agsize_t, agerr_t> ServerConnection::writeFile(const char* path, agsiz
 
 	//Write the buffer data to the socket.
 	agsize_t total_written = 0;
-	agerr_t error;
 	while (total_written != size &&
 		(error = write(socket_, buf + total_written, size - total_written)) > 0) {
 		total_written += error;

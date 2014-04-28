@@ -372,7 +372,7 @@ void ClientConnection::processWrite() {
 	std::vector<unsigned char> data{};
 	data.resize(size);
 	agsize_t total_read = 0, total_written = 0;
-	agerr_t error = 0;
+	error = 0;
 	while (total_read != size &&
 			(error = read(fd_, &data[0] + total_read, size - total_read)) > 0) {
 		total_read += error;
