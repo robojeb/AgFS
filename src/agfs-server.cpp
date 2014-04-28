@@ -119,6 +119,10 @@ void ClientConnection::processCommands() {
 				std::cerr << "READ called" << std::endl;
 				processRead();
 				break;
+			case cmd::WRITE:
+				std::cerr << "WRITE called" << std::endl;
+				processWrite();
+				break;
 			default:
 				std::cerr << "Unknown command" << std::endl;
 			}
@@ -356,7 +360,8 @@ void ClientConnection::processWrite() {
 	lseek(fd, offset, SEEK_SET);
 
 	//Read data into buffer and write data into the file at the same time.
-	std::vector<unsigned char> data{size};
+	std::vector<unsigned char> data{};
+	data.resize(size);
 	agsize_t total_read = 0, total_written = 0;
 	agerr_t error = 0;
 	while (total_read != size &&
@@ -365,7 +370,7 @@ void ClientConnection::processWrite() {
 
 		//We should be okay to use error here, since we are guaranteed that
 		//it is positive.
-		if ((error = write(fd, &data[0] + total_read, error)) > 0) {
+		if ((error = write(fd, &data[0] + total_read - error, error)) > 0) {
 			total_written += error;
 		}
 		else {

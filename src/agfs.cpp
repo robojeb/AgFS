@@ -365,20 +365,28 @@ static int agfs_read(const char *path, char *buf, size_t size, off_t offset,
 static int agfs_write(const char *path, const char *buf, size_t size,
 		     off_t offset, struct fuse_file_info *fi)
 {
-  int fd;
-  int res;
+  std::pair<std::string, std::string> id{Disambiguater::ambiguate(path)};
+  std::string server{id.first}, file{id.second};
 
-  (void) fi;
-  fd = open(path, O_WRONLY);
-  if (fd == -1)
-    return -errno;
+  std::map<std::string, ServerConnection>::iterator it;
+  std::pair<agsize_t, agerr_t> retVal;
+  retVal.second = -ENOENT;
+  it = connections.find(server);
+  if (it != connections.end()) {
+    retVal = it->second.writeFile(file.c_str(), size, offset, buf);
+    if (retVal.second >= 0) {
+      return retVal.first;
+    }
+  } else {
+    for (it = connections.begin(); it != connections.end(); ++it) {
+      retVal = it->second.writeFile(file.c_str(), size, offset, buf);
+      if (retVal.second >= 0) {
+        return retVal.first;
+      }
+    }
+  }
 
-  res = pwrite(fd, buf, size, offset);
-  if (res == -1)
-    res = -errno;
-
-  close(fd);
-  return res;
+  return retVal.second;
 }
 
 static int agfs_statfs(const char *path, struct statvfs *stbuf)
