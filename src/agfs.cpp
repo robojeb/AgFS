@@ -44,19 +44,30 @@
 #include <chrono>
 #include <thread>
 
-/*
- * Assumes an ambiguated path input and queries all servers
- * for that file.
- */
-std::vector<std::string> checkExistance(std::string path) {
-    return std::vector<std::string>();
-}
-
 /**************
  * GLOBALS *
  ***********/
 
 static std::map<std::string, ServerConnection> connections;
+
+/*
+ * Assumes an ambiguated path input and queries all servers
+ * for that file.
+ */
+std::vector<std::string> checkExistance(std::string path) {
+  std::vector<std::string> retVal{};
+
+  std::map<std::string, ServerConnection>::iterator it;
+  agerr_t error = 0;
+  for (it = connections.begin(); it != connections.end(); ++it) {
+    error = it->second.access(path.c_str(), F_OK);
+    if (error >= 0) {
+      retVal.push_back(it->first);
+    }
+  }
+
+  return retVal;
+}
 
 static void agfs_destroy(void *data)
 {
