@@ -48,6 +48,9 @@
  * GLOBALS *
  ***********/
 
+
+//Allocated onto the heap to allow for quick access to which server holds
+//a specific file (cuts down on network traffic).
 typedef struct {
   std::string server;
 } file_handle_t;
@@ -373,7 +376,7 @@ static int agfs_open(const char *path, struct fuse_file_info *fi)
   it = connections.find(server);
   agerr_t error = -ENOENT;
   if (it != connections.end()) {
-    error = it->second.open(path, fi->flags);
+    error = it->second.open(file.c_str(), fi->flags);
     if (error >= 0) {
       file_handle_t* fileHandle = new file_handle_t{};
       fileHandle->server = server;
@@ -390,6 +393,11 @@ static int agfs_read(const char *path, char *buf, size_t size, off_t offset,
   std::pair<std::string, std::string> id{Disambiguater::ambiguate(path)};
   std::string server{id.first}, file{id.second};
 
+  if (server.length() == 0) {
+    file_handle_t* fileHandle = (file_handle_t*)(fi->fh);
+    server = fileHandle->server;
+  }
+
   std::map<std::string, ServerConnection>::iterator it;
   std::pair<std::vector<unsigned char>, agerr_t> retVal;
   retVal.second = -ENOENT;
@@ -399,17 +407,7 @@ static int agfs_read(const char *path, char *buf, size_t size, off_t offset,
     if (retVal.second >= 0) {
       memcpy(buf, &retVal.first[0], retVal.first.size());
     }
-  } else {
-    for (it = connections.begin(); it != connections.end(); ++it) {
-      retVal = it->second.readFile(file.c_str(), size, offset);
-      if (retVal.second >= 0) {
-        memcpy(buf, &retVal.first[0], retVal.first.size());
-        break;
-      }
-    }
   }
-
-  (void)fi;
 
   return retVal.second >= 0 ? retVal.first.size() : retVal.second;
 }
@@ -420,27 +418,20 @@ static int agfs_write(const char *path, const char *buf, size_t size,
   std::pair<std::string, std::string> id{Disambiguater::ambiguate(path)};
   std::string server{id.first}, file{id.second};
 
+  if (server.length() == 0) {
+    file_handle_t* fileHandle = (file_handle_t*)(fi->fh);
+    server = fileHandle->server;
+  }
+
   std::map<std::string, ServerConnection>::iterator it;
   std::pair<agsize_t, agerr_t> retVal;
   retVal.second = -ENOENT;
   it = connections.find(server);
   if (it != connections.end()) {
     retVal = it->second.writeFile(file.c_str(), size, offset, buf);
-    if (retVal.second >= 0) {
-      return retVal.first;
-    }
-  } else {
-    for (it = connections.begin(); it != connections.end(); ++it) {
-      retVal = it->second.writeFile(file.c_str(), size, offset, buf);
-      if (retVal.second >= 0) {
-        return retVal.first;
-      }
-    }
   }
 
-  (void)fi;
-
-  return retVal.second;
+  return retVal.second >= 0 ? retVal.first : retVal.second;
 }
 
 static int agfs_statfs(const char *path, struct statvfs *stbuf)
@@ -460,7 +451,6 @@ static int agfs_release(const char *path, struct fuse_file_info *fi)
      unimplemented */
 
   file_handle_t* fileHandle = (file_handle_t*)((uintptr_t)fi->fh);
-  std::cerr << fileHandle->server << std::endl;
   delete fileHandle;
 
   (void) path;
