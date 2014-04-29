@@ -52,7 +52,7 @@ ClientConnection::ClientConnection(int connfd) {
 	if(validKey == false) {
 		agfs_write_cmd(connfd, cmd::INVALID_KEY);
 		close(connfd);
-		fd_ = -1;
+		socket_ = -1;
 		return;
 	}
 
@@ -61,7 +61,7 @@ ClientConnection::ClientConnection(int connfd) {
 	if(userPwd == NULL) {
 		agfs_write_cmd(connfd, cmd::USER_NOT_FOUND);
 		close(connfd);
-		fd_ = -1;
+		socket_ = -1;
 		return;
 	} else {
 		setuid(userPwd->pw_uid);
@@ -72,40 +72,40 @@ ClientConnection::ClientConnection(int connfd) {
 	if(!boost::filesystem::exists(mountPath)) {
 		agfs_write_cmd(connfd, cmd::MOUNT_NOT_FOUND);
 		close(connfd);
-		fd_ = -1;
+		socket_ = -1;
 		return;
 	}
 
-	fd_ = connfd;
+	socket_ = connfd;
 	mountPoint_ = mountPath;
 	beatsMissed_ = 0;
 }
 
 bool ClientConnection::connected() {
-	return fd_ > -1;
+	return socket_ > -1;
 }
 
 void ClientConnection::processCommands() {
 	//Passed all checks accept connection and keep alive until heartbeat
 	//failure or explicit stop
-	agfs_write_cmd(fd_, cmd::ACCEPT);
+	agfs_write_cmd(socket_, cmd::ACCEPT);
 	while(1) {
 		cmd_t cmd = cmd::GETATTR;
-		int respVal = agfs_read_cmd(fd_, cmd);
+		int respVal = agfs_read_cmd(socket_, cmd);
 		if(respVal <= 0) {
 			std::cout << "Missed heartbeat" << std::endl;
 			beatsMissed_ += 1;
 			if (beatsMissed_ > 5) {
-				close(fd_);
-				fd_ = -1;
+				close(socket_);
+				socket_ = -1;
 				return;
 			}
 		} else {
 			switch(cmd) {
 			case cmd::STOP:
 				std::cerr << "STOP called" << std::endl;
-				close(fd_);
-				fd_ = -1;
+				close(socket_);
+				socket_ = -1;
 				return;
 			case cmd::HEARTBEAT:
 				std::cerr << "Received heartbeat" << std::endl;
@@ -127,6 +127,14 @@ void ClientConnection::processCommands() {
 				std::cerr << "READ called" << std::endl;
 				processRead();
 				break;
+			case cmd::WRITE:
+				std::cerr << "WRITE called"  << std::endl;
+				processWrite();
+				break;
+			case cmd::OPEN:
+				std::cerr << "OPEN called" << std::endl;
+				processOpen();
+				break;
 			default:
 				std::cerr << "Unknown command" << std::endl;
 			}
@@ -136,7 +144,7 @@ void ClientConnection::processCommands() {
 }
 
 void ClientConnection::processHeartbeat() {
-	agfs_write_cmd(fd_, cmd::HEARTBEAT);
+	agfs_write_cmd(socket_, cmd::HEARTBEAT);
 }
 
 /*
@@ -150,7 +158,7 @@ void ClientConnection::processHeartbeat() {
  */
 void ClientConnection::processGetAttr() {
 	std::string path;
-	agfs_read_string(fd_, path);
+	agfs_read_string(socket_, path);
 	boost::filesystem::path fusePath{path};
 	boost::filesystem::path file{mountPoint_};
 	file /= fusePath;
@@ -162,9 +170,9 @@ void ClientConnection::processGetAttr() {
 		error = -errno;
 	}
 
-	agfs_write_error(fd_, error);
+	agfs_write_error(socket_, error);
 	if (error >= 0) {
-		agfs_write_stat(fd_, retValue);
+		agfs_write_stat(socket_, retValue);
 	}
 }
 
@@ -179,7 +187,7 @@ void ClientConnection::processGetAttr() {
  */
 void ClientConnection::processAccess() {
 	std::string path;
-	agfs_read_string(fd_, path);
+	agfs_read_string(socket_, path);
 
 	//Cosntruct the filepath
 	boost::filesystem::path fusePath{path};
@@ -188,13 +196,13 @@ void ClientConnection::processAccess() {
 
 	//Grab the access mask.
 	agmask_t mask;
-	agfs_read_mask(fd_, mask);
+	agfs_read_mask(socket_, mask);
 
 	//Attempt to access the file.
 	agerr_t result = access(file.c_str(), mask);
 
 	//Write our result
-	agfs_write_error(fd_, result);
+	agfs_write_error(socket_, result);
 }
 
 /*
@@ -208,7 +216,7 @@ void ClientConnection::processAccess() {
  */
 void ClientConnection::processReaddir() {
 	std::string path;
-	agfs_read_string(fd_, path);
+	agfs_read_string(socket_, path);
 
 	//Cosntruct the filepath
 	boost::filesystem::path fusePath{path};
@@ -223,7 +231,7 @@ void ClientConnection::processReaddir() {
 	if (!boost::filesystem::is_directory(file)) {
 		error = -ENOTDIR;
 	}
-	agfs_write_error(fd_, error);
+	agfs_write_error(socket_, error);
 
 	//Short circuit if we have an error.
 	if (error >= 0) {
@@ -234,7 +242,7 @@ void ClientConnection::processReaddir() {
 			dir_itr != end_itr; dir_itr++) {
 			count++;
 		}
-		agfs_write_size(fd_, count);
+		agfs_write_size(socket_, count);
 
 		//Write the filenames and associated stat's to the pipe.
 		struct stat stbuf;
@@ -242,12 +250,12 @@ void ClientConnection::processReaddir() {
 			dir_itr != end_itr; dir_itr++) {
 
 			//Write the relative name here
-			agfs_write_string(fd_, dir_itr->path().filename().string());
+			agfs_write_string(socket_, dir_itr->path().filename().string());
 
 			//We need to stat the absolute name here
 			memset(&stbuf, 0, sizeof(struct stat));
 			lstat(dir_itr->path().c_str(), &stbuf);
-			agfs_write_stat(fd_, stbuf);
+			agfs_write_stat(socket_, stbuf);
 		}
 	}
 }
@@ -264,7 +272,7 @@ void ClientConnection::processReaddir() {
 void ClientConnection::processRead()
 {
 	std::string path;
-	agfs_read_string(fd_, path);
+	agfs_read_string(socket_, path);
 
 	//Cosntruct the filepath
 	boost::filesystem::path fusePath{path};
@@ -272,10 +280,10 @@ void ClientConnection::processRead()
 	file /= fusePath;
 
 	agsize_t size = 0;
-	agfs_read_size(fd_, size);
+	agfs_read_size(socket_, size);
 
 	agsize_t offset = 0;
-	agfs_read_size(fd_, offset);
+	agfs_read_size(socket_, offset);
 
 	//Process the request
 	agerr_t error = 0;
@@ -284,7 +292,7 @@ void ClientConnection::processRead()
 	if ((fd = open(file.c_str(), O_RDONLY)) < 0)
 	{
 		error = -errno;
-		agfs_write_error(fd_, error);
+		agfs_write_error(socket_, error);
 		return;
 	}
 
@@ -302,17 +310,124 @@ void ClientConnection::processRead()
 	//Write the total number of bytes sent to the error value,
 	//unless there was a legitimate error.
 	error = error >= 0 ? total_read : error;
-	agfs_write_error(fd_, error);
+	agfs_write_error(socket_, error);
 
 	if (error >= 0) {
-		agfs_write_size(fd_, total_read);
-		write(fd_, &buf[0], total_read);
+		agfs_write_size(socket_, total_read);
+		write(socket_, &buf[0], total_read);
 	}
 }
 
-void ClientConnection::processOpen()
-{
+/*
+ * Incoming stack looks like:
+ * 
+ *      STRING [SIZE OFFSET DATA]
+ *
+ * Outgoing stack looks like:
+ *
+ *      ERROR [ERROR [SIZE]]
+ *
+ * The incoming stack will only contain parameters if the first error we return 
+ * indicates that that the file is on our machine.
+ *
+ * A quick note on the above outgoing stack. Although it may look like we can 
+ * get away with using the error value as the size, this is not true because 
+ * an error type is signed, whereas a size type is unsigned. If we were to use
+ * the error to hold the total number of bytes written, we would have a very
+ * rare bug that would occur when we tried to write large buffers to files.
+ */
+void ClientConnection::processWrite() {
+	std::string path;
+	agfs_read_string(fd_, path);
 
+	//Cosntruct the filepath
+	boost::filesystem::path fusePath{path};
+	boost::filesystem::path file{mountPoint_};
+	file /= fusePath;
+
+	//Open the file to the correct location.
+	int fd;
+	agerr_t error = 0;
+	if ((fd = open(file.c_str(), O_WRONLY)) < 0)
+	{
+		error = -errno;
+	}
+
+	agfs_write_error(fd_, error);
+	if (error < 0) {
+		return;
+	}
+
+	agsize_t size = 0;
+	agfs_read_size(fd_, size);
+
+	agsize_t offset = 0;
+	agfs_read_size(fd_, offset);
+
+	lseek(fd, offset, SEEK_SET);
+
+	//Read data into buffer and write data into the file at the same time.
+	std::vector<unsigned char> data{};
+	data.resize(size);
+	agsize_t total_read = 0, total_written = 0;
+	error = 0;
+	while (total_read != size &&
+			(error = read(fd_, &data[0] + total_read, size - total_read)) > 0) {
+		total_read += error;
+
+		//We should be okay to use error here, since we are guaranteed that
+		//it is positive.
+		if ((error = write(fd, &data[0] + total_read - error, error)) > 0) {
+			total_written += error;
+		}
+		else {
+			agfs_write_error(fd_, -errno);
+			return;
+		}
+	}
+	close(fd);
+
+	agfs_write_error(fd_, error);
+	if (error >= 0) {
+		agfs_write_size(fd_, total_written);
+	}
+}
+
+/*
+ * Incoming stack looks like:
+ *
+ *      STRING MASK
+ *
+ * Outgoing stack looks like:
+ *
+ *      ERROR
+ */
+void ClientConnection::processOpen() {
+	//Read in the path
+	std::string path;
+	agfs_read_string(socket_, path);
+
+	//Cosntruct the local filepath
+	boost::filesystem::path fusePath{path};
+	boost::filesystem::path file{mountPoint_};
+	file /= fusePath;
+
+	//Read in the mask
+	agmask_t mask = 0;
+	agfs_read_mask(socket_, mask);
+
+	//Open the file and write the error
+	agerr_t error = 0;
+	int fd = -1;
+	if ((fd = open(file.c_str(), mask)) < 0) {
+		error = -errno;
+	}
+
+	//We might want to consider sending the file descriptor to the
+	//client in a later iteration.
+	close(fd);
+
+	agfs_write_error(socket_, error);
 }
 
 void ClientConnection::processRelease()

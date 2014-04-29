@@ -33,7 +33,7 @@ private:
 	void processWrite();
 
 	boost::filesystem::path mountPoint_;
-	int fd_;
+	int socket_;
 	int beatsMissed_;
 };
 

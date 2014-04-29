@@ -290,7 +290,7 @@ std::pair<agsize_t, agerr_t> ServerConnection::writeFile(const char* path, agsiz
 	agfs_write_cmd(socket_, cmd::WRITE);
 
 	//Send parameters.
-	agfs_write_string(socket_, path);
+	agfs_write_string(socket_, std::string(path));
 
 	agerr_t error = 0;
 	agfs_read_error(socket_, error);
@@ -322,6 +322,30 @@ std::pair<agsize_t, agerr_t> ServerConnection::writeFile(const char* path, agsiz
 	return std::pair<agsize_t, agerr_t>{total_written, error};
 }
 
+/*
+ * Outgoing stack looks like:
+ *
+ *      STRING MASK
+ *
+ * Incoming stack looks like:
+ *
+ *      ERROR
+ */
+agerr_t ServerConnection::open(const char* path, agmask_t flags) {
+	std::lock_guard<std::mutex> l{monitor_};
+	//Send command to open a file.
+	agfs_write_cmd(socket_, cmd::OPEN);
+
+	//Write the path and the flags to the socket.
+	agfs_write_string(socket_, std::string(path));
+	agfs_write_mask(socket_, flags);
+
+	//Read the resulting error from the server.
+	agerr_t error = 0;
+	agfs_read_error(socket_, error);
+
+	return error;
+}
 
 agerr_t ServerConnection::heartbeat()
 {

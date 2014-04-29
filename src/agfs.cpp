@@ -48,19 +48,23 @@
  * GLOBALS *
  ***********/
 
+typedef struct {
+  std::string server;
+} file_handle_t;
+
 static std::map<std::string, ServerConnection> connections;
 
 /*
  * Assumes an ambiguated path input and queries all servers
  * for that file.
  */
-std::vector<std::string> checkExistance(std::string path) {
+std::vector<std::string> checkExistance(const char* path) {
   std::vector<std::string> retVal{};
 
   std::map<std::string, ServerConnection>::iterator it;
   agerr_t error = 0;
   for (it = connections.begin(); it != connections.end(); ++it) {
-    error = it->second.access(path.c_str(), F_OK);
+    error = it->second.access(path, F_OK);
     if (error >= 0) {
       retVal.push_back(it->first);
     }
@@ -349,10 +353,30 @@ static int agfs_utimens(const char *path, const struct timespec ts[2])
 
 static int agfs_open(const char *path, struct fuse_file_info *fi)
 {
-  (void) path;
-  (void) fi;
-  std::cerr << "Open not implemented" << std::endl;
-  return 0;
+  std::pair<std::string, std::string> id{Disambiguater::ambiguate(path)};
+  std::string server{id.first}, file{id.second};
+
+  if (server.length() == 0) {
+    std::vector<std::string> servers = checkExistance(path);
+    if (servers.size() > 0) {
+      return -ENOENT;
+    }
+    server = servers[0];
+  }
+
+  std::map<std::string, ServerConnection>::iterator it;
+  it = connections.find(server);
+  agerr_t error = 0;
+  if (it != connections.end()) {
+    error = it->second.open(path, fi->flags);
+    if (error >= 0) {
+      file_handle_t* fileHandle = new file_handle_t{};
+      fileHandle->server = server;
+      fi->fh = (uintptr_t)fileHandle;
+    }
+  }
+
+  return error;
 }
 
 static int agfs_read(const char *path, char *buf, size_t size, off_t offset,
@@ -429,6 +453,9 @@ static int agfs_release(const char *path, struct fuse_file_info *fi)
 {
   /* Just a stub. This method is optional and can safely be left
      unimplemented */
+
+  file_handle_t* fileHandle = (file_handle_t*)((uintptr_t)fi->fh);
+  std::cerr << fileHandle->server << std::endl;
 
   (void) path;
   (void) fi;

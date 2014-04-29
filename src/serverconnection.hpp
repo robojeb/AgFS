@@ -37,6 +37,13 @@ public:
 	agerr_t access(const char* path, int mask);
 
 	/**
+	 * \brief Execute open a specified path on the remote server.
+	 * \param path String containing the path to be looked up
+	 * \returns The error code generated
+	 */
+	agerr_t open(const char* path, agmask_t flags);
+
+	/**
 	 * \brief Execute readdir on a specified path
 	 * \param path String containing the path to be looked up
 	 * \returns a pair of a vector containing the children files/directories,
