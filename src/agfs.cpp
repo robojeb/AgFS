@@ -371,7 +371,7 @@ static int agfs_open(const char *path, struct fuse_file_info *fi)
 
   std::map<std::string, ServerConnection>::iterator it;
   it = connections.find(server);
-  agerr_t error = 0;
+  agerr_t error = -ENOENT;
   if (it != connections.end()) {
     error = it->second.open(path, fi->flags);
     if (error >= 0) {
