@@ -46,8 +46,7 @@ bool ServerConnection::connected()
 	return true;
 }
 
-agerr_t ServerConnection::stop()
-{
+agerr_t ServerConnection::stop() {
 	std::lock_guard<std::mutex> l{monitor_};
 	agerr_t error = 0;
 	if (connected()) {
@@ -125,8 +124,7 @@ void ServerConnection::connect(){
 	}
 };
 
-bool ServerConnection::stopped()
-{
+bool ServerConnection::stopped() {
 	return connectionStopped_;
 }
 
@@ -148,8 +146,7 @@ bool ServerConnection::stopped()
  *
  *      ERROR [STAT]
  */
-std::pair<struct stat, agerr_t> ServerConnection::getattr(const char* path)
-{
+std::pair<struct stat, agerr_t> ServerConnection::getattr(const char* path) {
 	std::lock_guard<std::mutex> l{monitor_};
 	//Let server know we want file metadata
 	cmd_t cmd = cmd::GETATTR;
@@ -179,8 +176,7 @@ std::pair<struct stat, agerr_t> ServerConnection::getattr(const char* path)
  *
  *      ERROR
  */
-agerr_t ServerConnection::access(const char* path, int mask)
-{
+agerr_t ServerConnection::access(const char* path, int mask) {
 	std::lock_guard<std::mutex> l{monitor_};
 	//Let server know we want file access
 	cmd_t cmd = cmd::ACCESS;
@@ -207,8 +203,7 @@ agerr_t ServerConnection::access(const char* path, int mask)
  *
  *      ERROR [COUNT [STRING STAT]*]
  */
-std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t> ServerConnection::readdir(const char* path)
-{
+std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t> ServerConnection::readdir(const char* path) {
 	std::lock_guard<std::mutex> l{monitor_};
 	//Let server know we want to read a directory.
 	cmd_t cmd = cmd::READDIR;
@@ -251,8 +246,7 @@ std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t> ServerConne
  *
  *      ERROR [SIZE [DATA]*]
  */
-std::pair<std::vector<unsigned char>, agerr_t> ServerConnection::readFile(const char* path, agsize_t size, agsize_t offset)
-{
+std::pair<std::vector<unsigned char>, agerr_t> ServerConnection::readFile(const char* path, agsize_t size, agsize_t offset) {
 	std::lock_guard<std::mutex> l{monitor_};
 	//Send command to read data from file.
 	agfs_write_cmd(socket_, cmd::READ);
@@ -350,8 +344,9 @@ agerr_t ServerConnection::open(const char* path, agmask_t flags) {
 	return error;
 }
 
-agerr_t ServerConnection::heartbeat()
-{
+agerr_t ServerConnection::heartbeat() {
+	std::lock_guard<std::mutex> l{monitor_};
+
 	agfs_write_cmd(socket_, cmd::HEARTBEAT);
 	cmd_t resp = cmd::NONE;
 	agfs_read_cmd(socket_, resp);
@@ -369,8 +364,7 @@ agerr_t ServerConnection::heartbeat()
  * Private Functions *
  *********************/
 
-int ServerConnection::dnsLookup(const char* port)
-{
+int ServerConnection::dnsLookup(const char* port) {
   struct addrinfo hints, *hostaddress = NULL;
   int error, fd;
 
