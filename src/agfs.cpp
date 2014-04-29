@@ -204,6 +204,9 @@ static int agfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
     }
   }
 
+  filler(buf, ".", NULL, 0);
+  filler(buf, "..", NULL, 0);
+
   //Fill the buffer with the filenames that were found.
   std::vector<std::pair<std::string, struct stat>> disamPathsStats{disam.disambiguatedFilepathsWithStats()};
   for (size_t i = 0; i < disamPathsStats.size(); i++) {
