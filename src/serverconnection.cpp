@@ -30,7 +30,10 @@ ServerConnection::ServerConnection(ServerConnection const& connection) :
 	failedCommand_{connection.failedCommand_},
 	connectionStopped_{connection.connectionStopped_},
 	hostname_{connection.hostname_},
-	socket_{connection.socket_}
+	port_{connection.port_},
+	key_{connection.key_},
+	socket_{connection.socket_},
+	closed_{connection.closed_}
 {
 	//Copy constructor!
 }

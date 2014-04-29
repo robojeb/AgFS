@@ -53,6 +53,7 @@ typedef struct {
 } file_handle_t;
 
 static std::map<std::string, ServerConnection> connections;
+static std::vector<std::thread> heartbeatThreads;
 
 /*
  * Assumes an ambiguated path input and queries all servers
@@ -80,6 +81,10 @@ static void agfs_destroy(void *data)
   std::map<std::string, ServerConnection>::iterator it;
   for (it = connections.begin(); it != connections.end(); ++it) {
     it->second.stop();
+  }
+
+  for (size_t i = 0; i < heartbeatThreads.size(); i++) {
+    heartbeatThreads[i].join();
   }
 }
 
@@ -358,7 +363,7 @@ static int agfs_open(const char *path, struct fuse_file_info *fi)
 
   if (server.length() == 0) {
     std::vector<std::string> servers = checkExistance(path);
-    if (servers.size() > 0) {
+    if (servers.size() != 1) {
       return -ENOENT;
     }
     server = servers[0];
@@ -456,6 +461,7 @@ static int agfs_release(const char *path, struct fuse_file_info *fi)
 
   file_handle_t* fileHandle = (file_handle_t*)((uintptr_t)fi->fh);
   std::cerr << fileHandle->server << std::endl;
+  delete fileHandle;
 
   (void) path;
   (void) fi;
@@ -573,19 +579,18 @@ static int agfs_opt_proc(void *data, const char *arg, int key, struct fuse_args 
 
 
 void heartbeatThread(ServerConnection& conn) {
-    std::chrono::seconds beatTime{5};
-    std::chrono::seconds reconnTime{30};
-    while(!conn.closed()) {
-        if (!conn.connected()) {
-            std::this_thread::sleep_for(reconnTime);
-            conn.connect();
-        } else {
-            std::this_thread::sleep_for(beatTime);
-            conn.heartbeat();
-        }
+  std::chrono::seconds beatTime{5};
+  std::chrono::seconds reconnTime{30};
+  while(!conn.closed()) {
+    if (!conn.connected()) {
+      std::this_thread::sleep_for(reconnTime);
+      conn.connect();
+    } else {
+      std::this_thread::sleep_for(beatTime);
+      conn.heartbeat();
     }
+  }
 }
-
 
 static const boost::filesystem::path KEYDIRPATH(".agfs");
 static const std::string EXTENSION(".agkey");
@@ -626,9 +631,8 @@ int main(int argc, char *argv[])
     }
   }
 
-  std::vector<std::thread> threads;
   for (auto& connPair: connections) {
-      threads.push_back(std::thread(heartbeatThread, std::ref(connPair.second)));
+    heartbeatThreads.push_back(std::thread(heartbeatThread, std::ref(connPair.second)));
   }
 
   memset(&agfs_oper, 0, sizeof(struct fuse_operations));
