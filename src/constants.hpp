@@ -83,6 +83,9 @@ namespace cmd {
 
     /// Command for no response
     constexpr cmd_t NONE = 11;
+
+    /// Command to OPEN a file
+    constexpr cmd_t OPEN = 12;
 }
 
 #endif
