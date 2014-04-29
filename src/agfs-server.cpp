@@ -338,7 +338,7 @@ void ClientConnection::processRead()
  */
 void ClientConnection::processWrite() {
 	std::string path;
-	agfs_read_string(fd_, path);
+	agfs_read_string(socket_, path);
 
 	//Cosntruct the filepath
 	boost::filesystem::path fusePath{path};
@@ -353,16 +353,16 @@ void ClientConnection::processWrite() {
 		error = -errno;
 	}
 
-	agfs_write_error(fd_, error);
+	agfs_write_error(socket_, error);
 	if (error < 0) {
 		return;
 	}
 
 	agsize_t size = 0;
-	agfs_read_size(fd_, size);
+	agfs_read_size(socket_, size);
 
 	agsize_t offset = 0;
-	agfs_read_size(fd_, offset);
+	agfs_read_size(socket_, offset);
 
 	lseek(fd, offset, SEEK_SET);
 
@@ -372,7 +372,7 @@ void ClientConnection::processWrite() {
 	agsize_t total_read = 0, total_written = 0;
 	error = 0;
 	while (total_read != size &&
-			(error = read(fd_, &data[0] + total_read, size - total_read)) > 0) {
+			(error = read(socket_, &data[0] + total_read, size - total_read)) > 0) {
 		total_read += error;
 
 		//We should be okay to use error here, since we are guaranteed that
@@ -381,15 +381,15 @@ void ClientConnection::processWrite() {
 			total_written += error;
 		}
 		else {
-			agfs_write_error(fd_, -errno);
+			agfs_write_error(socket_, -errno);
 			return;
 		}
 	}
 	close(fd);
 
-	agfs_write_error(fd_, error);
+	agfs_write_error(socket_, error);
 	if (error >= 0) {
-		agfs_write_size(fd_, total_written);
+		agfs_write_size(socket_, total_written);
 	}
 }
 
