@@ -53,6 +53,7 @@
 //a specific file (cuts down on network traffic).
 typedef struct {
   std::string server;
+  std::string file;
 } file_handle_t;
 
 static std::map<std::string, ServerConnection> connections;
@@ -103,7 +104,7 @@ static int agfs_getattr(const char *path, struct stat *stbuf)
   //If the server is in our map, then only look at that server
   std::map<std::string, ServerConnection>::iterator it;
   it = connections.find(server);
-  if (it != connections.end()) {
+  if (it != connections.end() && it->second.connected()) {
     retVal = it->second.getattr(file.c_str());
   } else {
     //Otherwise, iterate through all connections to find the first such file.
@@ -378,11 +379,12 @@ static int agfs_open(const char *path, struct fuse_file_info *fi)
   std::map<std::string, ServerConnection>::iterator it;
   it = connections.find(server);
   agerr_t error = -ENOENT;
-  if (it != connections.end()) {
+  if (it != connections.end() && it->second.connected()) {
     error = it->second.open(file.c_str(), fi->flags);
     if (error >= 0) {
       file_handle_t* fileHandle = new file_handle_t{};
       fileHandle->server = server;
+      fileHandle->file = file;
       fi->fh = (uintptr_t)fileHandle;
     }
   }
@@ -393,24 +395,21 @@ static int agfs_open(const char *path, struct fuse_file_info *fi)
 static int agfs_read(const char *path, char *buf, size_t size, off_t offset,
 		    struct fuse_file_info *fi)
 {
-  std::pair<std::string, std::string> id{Disambiguater::ambiguate(path)};
-  std::string server{id.first}, file{id.second};
-
-  if (server.length() == 0) {
-    file_handle_t* fileHandle = (file_handle_t*)(fi->fh);
-    server = fileHandle->server;
-  }
+  file_handle_t* fileHandle = (file_handle_t*)fi->fh;
+  std::string file{fileHandle->file}, server{fileHandle->server};
 
   std::map<std::string, ServerConnection>::iterator it;
   std::pair<std::vector<unsigned char>, agerr_t> retVal;
   retVal.second = -ENOENT;
   it = connections.find(server);
-  if (it != connections.end()) {
+  if (it != connections.end() && it->second.connected()) {
     retVal = it->second.readFile(file.c_str(), size, offset);
     if (retVal.second >= 0) {
       memcpy(buf, &retVal.first[0], retVal.first.size());
     }
   }
+
+  (void)path;
 
   return retVal.second >= 0 ? retVal.first.size() : retVal.second;
 }
@@ -418,21 +417,18 @@ static int agfs_read(const char *path, char *buf, size_t size, off_t offset,
 static int agfs_write(const char *path, const char *buf, size_t size,
 		     off_t offset, struct fuse_file_info *fi)
 {
-  std::pair<std::string, std::string> id{Disambiguater::ambiguate(path)};
-  std::string server{id.first}, file{id.second};
-
-  if (server.length() == 0) {
-    file_handle_t* fileHandle = (file_handle_t*)(fi->fh);
-    server = fileHandle->server;
-  }
+  file_handle_t* fileHandle = (file_handle_t*)fi->fh;
+  std::string file{fileHandle->file}, server{fileHandle->server};
 
   std::map<std::string, ServerConnection>::iterator it;
   std::pair<agsize_t, agerr_t> retVal;
   retVal.second = -ENOENT;
   it = connections.find(server);
-  if (it != connections.end()) {
+  if (it != connections.end() && it->second.connected()) {
     retVal = it->second.writeFile(file.c_str(), size, offset, buf);
   }
+
+  (void)path;
 
   return retVal.second >= 0 ? retVal.first : retVal.second;
 }
