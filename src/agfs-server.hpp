@@ -31,6 +31,7 @@ private:
 	void processOpen();
 	void processRelease();
 	void processWrite();
+	void processTruncate();
 
 	boost::filesystem::path mountPoint_;
 	int socket_;

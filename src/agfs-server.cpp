@@ -430,6 +430,32 @@ void ClientConnection::processOpen() {
 	agfs_write_error(socket_, error);
 }
 
+/*
+ * Incoming stack looks like:
+ *
+ *      STRING SIZE
+ *
+ * Outgoing stack looks like:
+ *
+ *      ERROR
+ */
+void ClientConnection::processTruncate() {
+	//Read in the path
+	std::string path;
+	agfs_read_string(socket_, path);
+
+	//Cosntruct the local filepath
+	boost::filesystem::path fusePath{path};
+	boost::filesystem::path file{mountPoint_};
+	file /= fusePath;
+
+	agsize_t size = 0;
+	agfs_read_size(socket_, size);
+
+	agerr_t error = truncate(file.c_str(), size);
+	agfs_write_error(socket_, error);
+}
+
 void ClientConnection::processRelease()
 {
 
