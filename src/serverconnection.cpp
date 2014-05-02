@@ -13,7 +13,6 @@
 #include <fcntl.h>
 #include <arpa/inet.h>
 #include <endian.h>
-#include <async>
 #include <future>
 
 ServerConnection::ServerConnection(std::string hostname, std::string port, std::string key):
@@ -49,7 +48,7 @@ bool ServerConnection::connected()
 }
 
 std::future<agerr_t> ServerConnection::stop() {
-    return std::async(std::launch::async, []() {
+    return std::async(std::launch::async, [this]() {
             std::lock_guard<std::mutex> l{monitor_};
             agerr_t error = 0;
             if (connected()) {
@@ -152,14 +151,15 @@ bool ServerConnection::stopped() {
  *      ERROR [STAT]
  */
 std::future<std::pair<struct stat, agerr_t>> ServerConnection::getattr(const char* path) {
-    return std::async(std::launch::async, []() {
+    std::string newPath{path};
+    return std::async(std::launch::async, [this](std::string path) {
             std::lock_guard<std::mutex> l{monitor_};
             //Let server know we want file metadata
             cmd_t cmd = cmd::GETATTR;
             agfs_write_cmd(socket_, cmd);
             
             //Outgoing stack calls
-            agfs_write_string(socket_, std::string(path));
+            agfs_write_string(socket_, path);
             
             agerr_t error = 0;
             agfs_read_error(socket_, error);
@@ -167,12 +167,11 @@ std::future<std::pair<struct stat, agerr_t>> ServerConnection::getattr(const cha
             struct stat readValues;
             memset(&readValues, 0, sizeof(struct stat));
             if(error >= 0) {
-		agfs_read_stat(socket_, readValues);
+                agfs_read_stat(socket_, readValues);
             }
             
             return std::pair<struct stat, agerr_t>(readValues, error);
-        }
-    );
+        }, newPath);
 }
 
 /*
@@ -185,24 +184,26 @@ std::future<std::pair<struct stat, agerr_t>> ServerConnection::getattr(const cha
  *      ERROR
  */
 std::future<agerr_t> ServerConnection::access(const char* path, int mask) {
-    return std::async(std::async::launch, []() {
-            std::lock_guard<std::mutex> l{monitor_};
-            //Let server know we want file access
-            cmd_t cmd = cmd::ACCESS;
-            agfs_write_cmd(socket_, cmd);
-            
-            //Outgoing stack calls
-            agfs_write_string(socket_, std::string(path));
-            
-            agfs_write_mask(socket_, (agmask_t)mask);
-            
-            //Incoming stack calls
-            agerr_t retValue;
-            agfs_read_error(socket_, retValue);
-            
-            return retValue;
-        }
-    );
+    std::string newPath{path};
+    return std::async(std::launch::async, 
+                      [this](std::string path, int mask) {
+                              std::lock_guard<std::mutex> l{monitor_};
+                              //Let server know we want file access
+                              cmd_t cmd = cmd::ACCESS;
+                              agfs_write_cmd(socket_, cmd);
+                              
+                              //Outgoing stack calls
+                              agfs_write_string(socket_, path);
+                              
+                              agfs_write_mask(socket_, (agmask_t)mask);
+                              
+                              //Incoming stack calls
+                              agerr_t retValue;
+                              agfs_read_error(socket_, retValue);
+                              
+                              return retValue;
+                          }, newPath, mask
+        );
 }
 
 /*
@@ -215,14 +216,15 @@ std::future<agerr_t> ServerConnection::access(const char* path, int mask) {
  *      ERROR [COUNT [STRING STAT]*]
  */
 std::future<std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t>> ServerConnection::readdir(const char* path) {
-    return std::async(std::launch::async, []() {
+    std::string newPath{path};
+    return std::async(std::launch::async, [this](std::string path) {
             std::lock_guard<std::mutex> l{monitor_};
             //Let server know we want to read a directory.
             cmd_t cmd = cmd::READDIR;
             agfs_write_cmd(socket_, cmd);
             
             //Outgoing stack calls
-            agfs_write_string(socket_, std::string(path));
+            agfs_write_string(socket_, path);
             
             //Incoming stack calls
             agerr_t error = 0;
@@ -232,10 +234,10 @@ std::future<std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t>
             //short circuit.
             std::vector<std::pair<std::string, struct stat>> files;
             if (error >= 0) {
-		agsize_t count = 0;
-		agfs_read_size(socket_, count);
+                agsize_t count = 0;
+                agfs_read_size(socket_, count);
                 
-		while (count-- > 0) {
+                while (count-- > 0) {
                     std::string file;
                     agfs_read_string(socket_, file);
                     
@@ -243,12 +245,11 @@ std::future<std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t>
                     agfs_read_stat(socket_, stbuf);
                     
                     files.push_back(std::pair<std::string, struct stat>{file, stbuf});
-		}
+                }
             }
             
             return std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t>{files, error};
-        }
-    );
+        }, newPath);
 }
 
 /*
@@ -261,31 +262,29 @@ std::future<std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t>
  *      ERROR [SIZE [DATA]*]
  */
 std::pair<std::vector<unsigned char>, agerr_t> ServerConnection::readFile(const char* path, agsize_t size, agsize_t offset) {
-    return std::async(std::launch::async, [] () {
-            std::lock_guard<std::mutex> l{monitor_};
-            //Send command to read data from file.
-            agfs_write_cmd(socket_, cmd::READ);
-            
-            //Send parameters
-            agfs_write_string(socket_, std::string(path));
-            agfs_write_size(socket_, size);
-            agfs_write_size(socket_, offset);
-            
-            agerr_t error = 0;
-            agfs_read_error(socket_, error);
-            
-            std::vector<unsigned char> data;
+    std::lock_guard<std::mutex> l{monitor_};
+    //Send command to read data from file.
+    agfs_write_cmd(socket_, cmd::READ);
+    
+    //Send parameters
+    agfs_write_string(socket_, std::string(path));
+    agfs_write_size(socket_, size);
+    agfs_write_size(socket_, offset);
+    
+    agerr_t error = 0;
+    agfs_read_error(socket_, error);
+    
+    std::vector<unsigned char> data;
             if (error >= 0) {
-		agsize_t amount_read = 0;
-		agfs_read_size(socket_, amount_read);
+                agsize_t amount_read = 0;
+                agfs_read_size(socket_, amount_read);
                 
-		data.resize(amount_read);
-		error = std::min((long long)read(socket_, &data[0], amount_read), (long long)error);
+                data.resize(amount_read);
+                error = std::min((long long)read(socket_, &data[0], amount_read), (long long)error);
             }
             
             return std::pair<std::vector<unsigned char>, agerr_t>{data, error};
-        }
-    );
+            
 }
 
 
@@ -299,44 +298,41 @@ std::pair<std::vector<unsigned char>, agerr_t> ServerConnection::readFile(const 
  *      ERROR [ERROR [SIZE]]
  */
 std::pair<agsize_t, agerr_t> ServerConnection::writeFile(const char* path, agsize_t size, agsize_t offset, const char* buf) {
-    return std::async(std::launch::async, [] () {
-            std::lock_guard<std::mutex> l{monitor_};
-            //Send command to write data to file.
-            agfs_write_cmd(socket_, cmd::WRITE);
-            
-            //Send parameters.
-            agfs_write_string(socket_, std::string(path));
-            
-            agerr_t error = 0;
-            agfs_read_error(socket_, error);
-            if (error < 0) {
+    std::lock_guard<std::mutex> l{monitor_};
+    //Send command to write data to file.
+    agfs_write_cmd(socket_, cmd::WRITE);
+    
+    //Send parameters.
+    agfs_write_string(socket_, std::string(path));
+    
+    agerr_t error = 0;
+    agfs_read_error(socket_, error);
+    if (error < 0) {
 		return std::pair<agsize_t, agerr_t>{0, error};
-            }
-            
-            agfs_write_size(socket_, size);
-            agfs_write_size(socket_, offset);
-            
-            //Write the buffer data to the socket.
-            agsize_t total_written = 0;
-            while (total_written != size &&
-                   (error = write(socket_, buf + total_written, size - total_written)) > 0) {
+    }
+    
+    agfs_write_size(socket_, size);
+    agfs_write_size(socket_, offset);
+    
+    //Write the buffer data to the socket.
+    agsize_t total_written = 0;
+    while (total_written != size &&
+           (error = write(socket_, buf + total_written, size - total_written)) > 0) {
 		total_written += error;
-            }
-            
-            //Handle an error writing to the socket.
-            if (error < 0) {
+    }
+    
+    //Handle an error writing to the socket.
+    if (error < 0) {
 		return std::pair<agsize_t, agerr_t>{0, -errno};
-            }
-
-            //Read in the return values.
-            agfs_read_error(socket_, error);
-            if (error >= 0) {
+    }
+    
+    //Read in the return values.
+    agfs_read_error(socket_, error);
+    if (error >= 0) {
 		agfs_read_size(socket_, total_written);
-            }
-            
-            return std::pair<agsize_t, agerr_t>{total_written, error};
-        }
-    );
+    }
+    
+    return std::pair<agsize_t, agerr_t>{total_written, error};
 }
 
 /*

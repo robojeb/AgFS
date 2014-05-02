@@ -6,7 +6,7 @@
 #include "constants.hpp"
 #include <vector>
 #include <mutex>
-
+#include <future>
 /// Provides the client with an interface over which to talk with the server.
 class ServerConnection {
 public:
@@ -17,7 +17,7 @@ public:
 	bool connected();
 
 	/// Returns true if we successfully terminated the connection to the server
-	bool closed();
+    bool closed();
 
 	/// Returns the hostname
 	std::string hostname();
@@ -27,14 +27,14 @@ public:
 	 * \param path String containing the path to be looked up
 	 * \returns A pair containing a stat struct and any error generated.
 	 */
-	std::pair<struct stat, agerr_t> getattr(const char* path);
+    std::future<std::pair<struct stat, agerr_t>> getattr(const char* path);
 
 	/**
 	 * \brief Execute access on a specified path
 	 * \param path String containing the path to be looked up
 	 * \returns The error code generated
 	 */
-	agerr_t access(const char* path, int mask);
+    std::future<agerr_t> access(const char* path, int mask);
 
 	/**
 	 * \brief Execute open a specified path on the remote server.
@@ -49,7 +49,7 @@ public:
 	 * \returns a pair of a vector containing the children files/directories,
 	  *         and any error generated.
 	 */
-	std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t> readdir(const char* path);
+    std::future<std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t>> readdir(const char* path);
 
 	/**
 	 * \brief Execute read on a specified path
@@ -75,7 +75,7 @@ public:
 	 * \brief Halt communication with the server
 	 * \returns an error indicating the success of the connection halt.
 	 */
-	agerr_t stop();
+    std::future<agerr_t> stop();
 
 
 	// Returns true if the connection was terminated succesfully

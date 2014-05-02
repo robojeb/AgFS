@@ -43,6 +43,7 @@
 #include <map>
 #include <chrono>
 #include <thread>
+#include <future>
 
 /**************
  * GLOBALS *
@@ -61,6 +62,8 @@ static std::vector<std::thread> heartbeatThreads;
 /*
  * Assumes an ambiguated path input and queries all servers
  * for that file.
+ * 
+ * \TODO: Currently not really async because of the need for retval.
  */
 std::vector<std::string> checkExistance(const char* path) {
   std::vector<std::string> retVal{};
@@ -68,12 +71,12 @@ std::vector<std::string> checkExistance(const char* path) {
   std::map<std::string, ServerConnection>::iterator it;
   agerr_t error = 0;
   for (it = connections.begin(); it != connections.end(); ++it) {
-    error = it->second.access(path, F_OK);
-    if (error >= 0) {
-      retVal.push_back(it->first);
-    }
+      error = it->second.access(path, F_OK).get();
+      if (error >= 0) {
+          retVal.push_back(it->first);
+      }
   }
-
+  
   return retVal;
 }
 
@@ -83,13 +86,13 @@ static void agfs_destroy(void *data)
   
   //Loop through server connections and send stop signal.
   std::map<std::string, ServerConnection>::iterator it;
-  std::vector<std::future<aggerr_t>> futures;
+  std::vector<std::future<agerr_t>> futures;
   for (it = connections.begin(); it != connections.end(); ++it) {
-      futures.push(it->second.stop());
+      futures.push_back(it->second.stop());
   }
   
   // Wait for all the connections to close;
-  for(std::future<aggerr_t>& theFuture : futures) {
+  for(std::future<agerr_t>& theFuture : futures) {
       theFuture.get();
   }
   
@@ -122,7 +125,7 @@ static int agfs_getattr(const char *path, struct stat *stbuf)
     }
 
     for(std::future<std::pair<struct stat, agerr_t>>& aFuture : futures) {
-        retVal = aFuture;
+        retVal = aFuture.get();
         if (retVal.second >= 0) {
             break;
         }
@@ -160,7 +163,7 @@ static int agfs_access(const char *path, int mask)
           }
       }
       
-      for(std::future<agerr_t>> aFuture& : futures) {
+      for(std::future<agerr_t>& aFuture: futures) {
           res = aFuture.get();
           if (res >= 0) {
               break;
