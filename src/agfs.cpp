@@ -80,12 +80,19 @@ std::vector<std::string> checkExistance(const char* path) {
 static void agfs_destroy(void *data)
 {
   (void)data;
+  
   //Loop through server connections and send stop signal.
   std::map<std::string, ServerConnection>::iterator it;
+  std::vector<std::future<aggerr_t>> futures;
   for (it = connections.begin(); it != connections.end(); ++it) {
-    it->second.stop();
+      futures.push(it->second.stop());
   }
-
+  
+  // Wait for all the connections to close;
+  for(std::future<aggerr_t>& theFuture : futures) {
+      theFuture.get();
+  }
+  
   for (size_t i = 0; i < heartbeatThreads.size(); i++) {
     heartbeatThreads[i].join();
   }
@@ -98,25 +105,30 @@ static int agfs_getattr(const char *path, struct stat *stbuf)
   //Initialize useful structures
   std::pair<std::string, std::string> id{Disambiguater::ambiguate(path)};
   std::string server{id.first}, file{id.second};
+  std::vector<std::future<std::pair<struct stat, agerr_t>>> futures;
   std::pair<struct stat, agerr_t> retVal;
-
   //If the server is in our map, then only look at that server
   std::map<std::string, ServerConnection>::iterator it;
   it = connections.find(server);
   if (it != connections.end()) {
-    retVal = it->second.getattr(file.c_str());
+      futures.push_back(it->second.getattr(file.c_str()));
+      retVal = futures[0].get();
   } else {
     //Otherwise, iterate through all connections to find the first such file.
     for (it = connections.begin(); it != connections.end(); ++it) {
       if (it->second.connected()) {
-        retVal = it->second.getattr(file.c_str());
-
-        if (retVal.second >= 0) {
-          break;
-        }
+          futures.push_back(it->second.getattr(file.c_str()));
       }
     }
+
+    for(std::future<std::pair<struct stat, agerr_t>>& aFuture : futures) {
+        retVal = aFuture;
+        if (retVal.second >= 0) {
+            break;
+        }
+    }  
   }
+  
 
   agerr_t error = retVal.second;
   if (error >= 0) {
@@ -133,21 +145,29 @@ static int agfs_access(const char *path, int mask)
   //Initialize useful structures
   std::pair<std::string, std::string> id{Disambiguater::ambiguate(path)};
   std::string server{id.first}, file{id.second};
+  std::vector<std::future<agerr_t>> futures;
 
   //Find the file
   std::map<std::string, ServerConnection>::iterator it;
   it = connections.find(server);
   if (it != connections.end()) {
-    res = it->second.access(file.c_str(), mask);
+      res = (it->second.access(file.c_str(), mask)).get();
   } else {
-    for (it = connections.begin(); it != connections.end(); ++it) {
-      res = it->second.access(file.c_str(), mask);
-      if (res >= 0) {
-        break;
+      for (it = connections.begin(); it != connections.end(); ++it) {
+          futures.push_back(it->second.access(file.c_str(), mask));
+          if (res >= 0) {
+              break;
+          }
       }
-    }
+      
+      for(std::future<agerr_t>> aFuture& : futures) {
+          res = aFuture.get();
+          if (res >= 0) {
+              break;
+          }
+      }
   }
-
+  
   return res;
 }
 
@@ -184,25 +204,31 @@ static int agfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
   //Initialize useful structures
   std::pair<std::string, std::string> id{Disambiguater::ambiguate(path)};
   std::string server{id.first}, file{id.second};
-
+  std::vector<std::future<std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t>>> futures;
   Disambiguater disam{};
 
   std::map<std::string, ServerConnection>::iterator it = connections.find(server);
   if (it != connections.end()) {
-    std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t> retVal{it->second.readdir(file.c_str())};
-    if ((temp = std::get<1>(retVal)) >= 0) {
-      disam.addFilepaths(std::get<0>(retVal), it->first);
-      err = temp;
-    }
-  } else {
-    for (it = connections.begin(); it != connections.end(); ++it) {
-      std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t> retVal{it->second.readdir(file.c_str())};
+      std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t> retVal{it->second.readdir(file.c_str()).get()};
       if ((temp = std::get<1>(retVal)) >= 0) {
-        disam.addFilepaths(std::get<0>(retVal), it->first);
-        err = temp;
+          disam.addFilepaths(std::get<0>(retVal), it->first);
+          err = temp;
       }
-    }
+  } else {
+      for (it = connections.begin(); it != connections.end(); ++it) {
+          futures.push_back(it->second.readdir(file.c_str()));
+      }
+      
+      for (std::future<std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t>>& aFuture : futures) {        
+        std::pair<std::vector<std::pair<std::string, struct stat>>, agerr_t> retVal{aFuture.get()};
+        if ((temp = std::get<1>(retVal)) >= 0) {
+            disam.addFilepaths(std::get<0>(retVal), it->first);
+            err = temp;
+        }
+      }
   }
+  
+  
 
   //Fill the buffer with the filenames that were found.
   std::vector<std::pair<std::string, struct stat>> disamPathsStats{disam.disambiguatedFilepathsWithStats()};
